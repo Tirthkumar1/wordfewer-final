@@ -6,7 +6,8 @@ import { Platform, StyleSheet, Text, View } from 'react-native'
 import Svg, { Circle, Path, Rect } from 'react-native-svg'
 import { Colors } from '../theme'
 
-// ─── Placeholder screens (replaced by real screens below) ────────────────────
+import GameOverScreen from '../screens/GameOverScreen'
+import GameScreen from '../screens/GameScreen'
 import HomeScreen from '../screens/HomeScreen'
 import LanguagePickerScreen from '../screens/LanguagePickerScreen'
 
@@ -14,12 +15,6 @@ function LeaderboardScreen() {
   return <View style={styles.placeholder} />
 }
 function ProfileScreen() {
-  return <View style={styles.placeholder} />
-}
-function GameScreen() {
-  return <View style={styles.placeholder} />
-}
-function GameOverScreen() {
   return <View style={styles.placeholder} />
 }
 function DailyChallengeScreen() {

@@ -1,0 +1,10 @@
+{
+  "id": "nl",
+  "name_native": "Nederlands",
+  "name_english": "Dutch",
+  "flag": "🇳🇱",
+  "script": "latin",
+  "chain_rule": "last_letter",
+  "badge_label": "LAST LETTER",
+  "iap_tier": "premium"
+}

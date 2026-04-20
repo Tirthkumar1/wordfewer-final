@@ -1,0 +1,10 @@
+{
+  "id": "de",
+  "name_native": "Deutsch",
+  "name_english": "German",
+  "flag": "🇩🇪",
+  "script": "latin",
+  "chain_rule": "last_letter",
+  "badge_label": "WORD CHAIN",
+  "iap_tier": "free"
+}

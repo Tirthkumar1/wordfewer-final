@@ -1,0 +1,10 @@
+{
+  "id": "ro",
+  "name_native": "Română",
+  "name_english": "Romanian",
+  "flag": "🇷🇴",
+  "script": "latin",
+  "chain_rule": "last_letter",
+  "badge_label": "LAST LETTER",
+  "iap_tier": "premium"
+}

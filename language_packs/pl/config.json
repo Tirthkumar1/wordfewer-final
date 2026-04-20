@@ -1,0 +1,10 @@
+{
+  "id": "pl",
+  "name_native": "Polski",
+  "name_english": "Polish",
+  "flag": "🇵🇱",
+  "script": "latin",
+  "chain_rule": "last_letter",
+  "badge_label": "LAST LETTER",
+  "iap_tier": "premium"
+}

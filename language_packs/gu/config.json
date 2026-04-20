@@ -1,0 +1,10 @@
+{
+  "id": "gu",
+  "name_native": "ગુજરાતી",
+  "name_english": "Gujarati",
+  "flag": "🇮🇳",
+  "script": "gujarati",
+  "chain_rule": "last_akshar",
+  "badge_label": "ANTYAKSHARI",
+  "iap_tier": "free"
+}

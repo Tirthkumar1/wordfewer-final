@@ -1,0 +1,10 @@
+{
+  "id": "hi",
+  "name_native": "हिंदी",
+  "name_english": "Hindi",
+  "flag": "🇮🇳",
+  "script": "devanagari",
+  "chain_rule": "last_akshar",
+  "badge_label": "ANTYAKSHARI",
+  "iap_tier": "free"
+}

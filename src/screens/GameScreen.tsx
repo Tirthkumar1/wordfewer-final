@@ -1,37 +1,27 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { useNavigation } from '@react-navigation/native'
+import { useNavigation, useRoute } from '@react-navigation/native'
+import type { RouteProp } from '@react-navigation/native'
 import type { StackNavigationProp } from '@react-navigation/stack'
-import React, {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import {
-  Animated,
-  Easing,
-  Keyboard,
-  Modal,
-  Pressable,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
+  Animated, Easing, Keyboard, Modal, Pressable,
+  ScrollView, StatusBar, StyleSheet, Text, TextInput, View,
 } from 'react-native'
 import Svg, { Path } from 'react-native-svg'
 import GhostButton from '../components/GhostButton'
 import GradientButton from '../components/GradientButton'
 import NeuralBackground from '../components/NeuralBackground'
 import Toast from '../components/Toast'
+import { submitDailyResult } from '../db/dbService'
 import type { RootStackParamList } from '../navigation/AppNavigator'
-// Stubbed for local testing — no ads
-const showRewarded = async (): Promise<boolean> => true
 import { useGame } from '../store/gameStore'
 import { Colors, Fonts, getNativeFont } from '../theme'
 
+// Stubbed for local testing — no ads
+const showRewarded = async (): Promise<boolean> => true
+
 type Nav = StackNavigationProp<RootStackParamList>
+type GameRoute = RouteProp<RootStackParamList, 'Game'>
 
 // ─── Romanisation map for Indic akshars ──────────────────────────────────────
 
@@ -104,7 +94,10 @@ function timerColor(t: number): string {
 
 export default function GameScreen() {
   const navigation = useNavigation<Nav>()
+  const route = useRoute<GameRoute>()
   const { state, dispatch } = useGame()
+  const isDailyChallenge = route.params?.isDailyChallenge ?? false
+  const dailyStartingWord = route.params?.startingWord
 
   const [input, setInput] = useState('')
   const [paused, setPaused] = useState(false)
@@ -128,6 +121,9 @@ export default function GameScreen() {
   // Navigate to game over
   useEffect(() => {
     if (status === 'gameover') {
+      if (isDailyChallenge) {
+        submitDailyResult(state.languageId, state.chain.length, state.score)
+      }
       navigation.replace('GameOver', {
         score: state.score,
         chainLength: state.chain.length,
@@ -138,7 +134,9 @@ export default function GameScreen() {
 
   // Auto-start game if idle
   useEffect(() => {
-    if (status === 'idle') dispatch({ type: 'START_GAME' })
+    if (status === 'idle') {
+      dispatch({ type: 'START_GAME', payload: isDailyChallenge ? dailyStartingWord : undefined })
+    }
   }, [])
 
   // Tick interval

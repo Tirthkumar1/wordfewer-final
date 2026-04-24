@@ -2,24 +2,17 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'
 import { NavigationContainer } from '@react-navigation/native'
 import { createStackNavigator } from '@react-navigation/stack'
 import React from 'react'
-import { Platform, StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, Text, View } from 'react-native'
 import Svg, { Circle, Path, Rect } from 'react-native-svg'
 import { Colors } from '../theme'
 
+import DailyChallengeScreen from '../screens/DailyChallengeScreen'
 import GameOverScreen from '../screens/GameOverScreen'
 import GameScreen from '../screens/GameScreen'
 import HomeScreen from '../screens/HomeScreen'
 import LanguagePickerScreen from '../screens/LanguagePickerScreen'
-
-function LeaderboardScreen() {
-  return <View style={styles.placeholder} />
-}
-function ProfileScreen() {
-  return <View style={styles.placeholder} />
-}
-function DailyChallengeScreen() {
-  return <View style={styles.placeholder} />
-}
+import LeaderboardScreen from '../screens/LeaderboardScreen'
+import ProfileScreen from '../screens/ProfileScreen'
 
 // ─── Tab icon SVGs ────────────────────────────────────────────────────────────
 
@@ -124,7 +117,7 @@ export type TabParamList = {
 
 export type RootStackParamList = {
   Tabs: undefined
-  Game: { languageId?: string }
+  Game: { languageId?: string; isDailyChallenge?: boolean; startingWord?: string }
   GameOver: { score: number; chainLength: number; languageId: string }
   DailyChallenge: { languageId?: string }
   LanguagePicker: undefined
@@ -201,10 +194,6 @@ export default function AppNavigator() {
 }
 
 const styles = StyleSheet.create({
-  placeholder: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
   tabBar: {
     backgroundColor: 'rgba(19,18,27,0.8)',
     borderTopWidth: 0,

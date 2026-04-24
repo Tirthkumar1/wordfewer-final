@@ -32,7 +32,7 @@ interface GameState {
 
 type Action =
   | { type: 'SET_LANGUAGE'; payload: { languageId: string; script: string; chainRule: string; wordlist: string[] } }
-  | { type: 'START_GAME' }
+  | { type: 'START_GAME'; payload?: string }
   | { type: 'SUBMIT_WORD'; payload: string }
   | { type: 'TICK' }
   | { type: 'EXPIRE' }
@@ -87,7 +87,7 @@ function reducer(state: GameState, action: Action): GameState {
 
     case 'START_GAME': {
       const validator = makeValidator(state)
-      const startWord = pickRandom(state.wordlist)
+      const startWord = action.payload ?? pickRandom(state.wordlist)
       return {
         ...state,
         status: 'playing',

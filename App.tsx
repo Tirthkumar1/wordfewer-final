@@ -1,20 +1,33 @@
-import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
+import { useFonts } from 'expo-font'
+import * as SplashScreen from 'expo-splash-screen'
+import React, { useEffect } from 'react'
+import { View } from 'react-native'
+import AppNavigator from './src/navigation/AppNavigator'
+import { GameProvider } from './src/store/gameStore'
+
+SplashScreen.preventAutoHideAsync()
 
 export default function App() {
-  return (
-    <View style={styles.container}>
-      <Text>Open up App.tsx to start working on your app!</Text>
-      <StatusBar style="auto" />
-    </View>
-  );
-}
+  const [fontsLoaded] = useFonts({
+    'Nunito-Black': require('./assets/fonts/Nunito-Black.ttf'),
+    'Nunito-ExtraBold': require('./assets/fonts/Nunito-ExtraBold.ttf'),
+    'PlusJakartaSans-Bold': require('./assets/fonts/PlusJakartaSans-Bold.ttf'),
+    'PlusJakartaSans-ExtraBold': require('./assets/fonts/PlusJakartaSans-ExtraBold.ttf'),
+    'Inter-Regular': require('./assets/fonts/Inter-Regular.ttf'),
+    'Inter-Medium': require('./assets/fonts/Inter-Medium.ttf'),
+    'NotoSansGujarati-Bold': require('./assets/fonts/NotoSansGujarati-Bold.ttf'),
+    'NotoSansDevanagari-Bold': require('./assets/fonts/NotoSansDevanagari-Bold.ttf'),
+  })
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
+  useEffect(() => {
+    if (fontsLoaded) SplashScreen.hideAsync()
+  }, [fontsLoaded])
+
+  if (!fontsLoaded) return <View style={{ flex: 1, backgroundColor: '#13121b' }} />
+
+  return (
+    <GameProvider>
+      <AppNavigator />
+    </GameProvider>
+  )
+}

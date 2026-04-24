@@ -13,9 +13,6 @@ export default ({ config }) => ({
   ios: {
     supportsTablet: false,
     bundleIdentifier: 'com.yourname.wordfever',
-    infoPlist: {
-      GADApplicationIdentifier: process.env.ADMOB_APP_ID_IOS,
-    },
   },
   android: {
     package: 'com.yourname.wordfever',
@@ -24,35 +21,9 @@ export default ({ config }) => ({
       foregroundImage: './assets/adaptive-icon.png',
       backgroundColor: '#13121b',
     },
-    config: {
-      googleMobileAdsAppId: process.env.ADMOB_APP_ID_ANDROID,
-    },
   },
-  plugins: [
-    'expo-font',
-    'expo-localization',
-    [
-      'expo-notifications',
-      {
-        icon: './assets/notification-icon.png',
-        color: '#6C47FF',
-      },
-    ],
-    [
-      'react-native-google-mobile-ads',
-      {
-        androidAppId: process.env.ADMOB_APP_ID_ANDROID,
-        iosAppId: process.env.ADMOB_APP_ID_IOS,
-      },
-    ],
-    '@sentry/react-native/expo',
-  ],
+  plugins: ['expo-font', 'expo-localization'],
   extra: {
     DATABASE_URL: process.env.DATABASE_URL,
-    REVENUECAT_KEY_IOS: process.env.REVENUECAT_KEY_IOS,
-    REVENUECAT_KEY_ANDROID: process.env.REVENUECAT_KEY_ANDROID,
-    SENTRY_DSN: process.env.SENTRY_DSN,
-    POSTHOG_KEY: process.env.POSTHOG_KEY,
-    eas: { projectId: 'REPLACE_WITH_EAS_PROJECT_ID' },
   },
 })

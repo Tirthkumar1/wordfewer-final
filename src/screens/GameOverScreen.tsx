@@ -19,10 +19,11 @@ import GhostButton from '../components/GhostButton'
 import GradientButton from '../components/GradientButton'
 import NeuralBackground from '../components/NeuralBackground'
 import type { RootStackParamList } from '../navigation/AppNavigator'
-import { showInterstitial } from '../services/AdService'
-import { track } from '../services/AnalyticsService'
-import { submitScore } from '../services/DbService'
-import { scheduleStreakReminder } from '../services/NotificationService'
+import { submitScore } from '../db/dbService'
+// Ads, analytics, notifications stubbed for local testing
+const showInterstitial = async () => {}
+const track = (..._args: unknown[]) => {}
+const scheduleStreakReminder = async () => {}
 import { useGame } from '../store/gameStore'
 import { Colors, Fonts, getNativeFont } from '../theme'
 

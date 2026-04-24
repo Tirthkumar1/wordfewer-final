@@ -15,7 +15,8 @@ import {
 import Svg, { Circle, Path } from 'react-native-svg'
 import GradientButton from '../components/GradientButton'
 import NeuralBackground from '../components/NeuralBackground'
-import { purchaseAllLanguages } from '../services/PurchaseService'
+// Stubbed for local testing
+const purchaseAllLanguages = async () => false
 import { useGame } from '../store/gameStore'
 import { Colors, Fonts, getNativeFont } from '../theme'
 import type { RootStackParamList } from '../navigation/AppNavigator'

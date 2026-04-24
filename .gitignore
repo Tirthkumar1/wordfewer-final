@@ -39,3 +39,6 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+assets/fonts/inter_extracted/
+assets/fonts/Inter.zip
+assets/fonts/*-VF.ttf

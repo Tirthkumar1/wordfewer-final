@@ -26,7 +26,8 @@ import GradientButton from '../components/GradientButton'
 import NeuralBackground from '../components/NeuralBackground'
 import Toast from '../components/Toast'
 import type { RootStackParamList } from '../navigation/AppNavigator'
-import { showRewarded } from '../services/AdService'
+// Stubbed for local testing — no ads
+const showRewarded = async (): Promise<boolean> => true
 import { useGame } from '../store/gameStore'
 import { Colors, Fonts, getNativeFont } from '../theme'
 

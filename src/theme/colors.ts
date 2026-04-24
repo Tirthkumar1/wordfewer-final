@@ -16,6 +16,7 @@ export const Colors = {
   onSurfaceVariant: '#c9c3d9',
   outlineVariant: '#484556',
   error: '#ffb4ab',
+  amber: '#FFB800',
 } as const
 
 export const Gradients = {

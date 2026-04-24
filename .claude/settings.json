@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/c/Users/Tirth/Desktop/wordfever/**)",
+      "Bash(node -e ' *)",
+      "Bash(npm uninstall *)",
+      "Bash(git commit -m ' *)",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(len\\(d\\), 'words'\\)\")",
+      "Bash(npx drizzle-kit *)",
+      "Bash(powershell.exe -Command \"Expand-Archive -Path Inter.zip -DestinationPath inter_extracted -Force\")",
+      "Bash(awk '{print $5, $9}')"
+    ],
+    "additionalDirectories": [
+      "c:\\Users\\Tirth\\Desktop\\Wordfewer\\src"
+    ]
+  }
+}

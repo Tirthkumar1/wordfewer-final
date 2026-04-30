@@ -179,7 +179,7 @@ function TabNavigator() {
   )
 }
 
-export default function AppNavigator() {
+export function AppNavigator() {
   return (
     <NavigationContainer>
       <Stack.Navigator screenOptions={{ headerShown: false, cardStyle: { backgroundColor: Colors.background } }}>
@@ -195,12 +195,11 @@ export default function AppNavigator() {
 
 const styles = StyleSheet.create({
   tabBar: {
-    backgroundColor: 'rgba(19,18,27,0.8)',
+    backgroundColor: '#1c1a24',
     borderTopWidth: 0,
-    height: 80,
-    paddingBottom: 16,
+    height: 72,
+    paddingBottom: 12,
     paddingTop: 8,
-    position: 'absolute',
     elevation: 0,
   },
   activePill: {

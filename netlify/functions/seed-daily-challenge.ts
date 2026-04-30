@@ -1,7 +1,7 @@
 import type { Handler } from '@netlify/functions'
 import { neon } from '@neondatabase/serverless'
 import { drizzle } from 'drizzle-orm/neon-http'
-import { daily_challenges } from '../../src/db/schema'
+import { dailyChallenges } from '../../src/db/schema'
 
 const WORD_POOLS: Record<string, string[]> = {
   en: ['apple','bridge','cloud','dragon','eagle','flame','globe','honey',
@@ -37,14 +37,18 @@ function getDifficulty(index: number): string {
 }
 
 export const handler: Handler = async (event) => {
+  // Netlify scheduled functions set this header automatically
+  const isScheduled = event.headers['x-netlify-scheduled'] === 'true'
   const authHeader = event.headers['authorization']
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  const isAuthorized = authHeader === `Bearer ${process.env.CRON_SECRET}`
+
+  if (!isScheduled && !isAuthorized) {
     return { statusCode: 401, body: JSON.stringify({ error: 'Unauthorized' }) }
   }
 
   try {
     const sql = neon(process.env.DATABASE_URL!)
-    const db = drizzle(sql, { schema: { daily_challenges } })
+    const db = drizzle(sql, { schema: { dailyChallenges } })
 
     const tomorrow = getTomorrow()
     const inserted: string[] = []
@@ -56,11 +60,11 @@ export const handler: Handler = async (event) => {
       const difficulty = getDifficulty(dayIndex)
 
       await db
-        .insert(daily_challenges)
+        .insert(dailyChallenges)
         .values({
-          language_id: langId,
-          challenge_date: tomorrow,
-          starting_word: startingWord,
+          languageId: langId,
+          challengeDate: tomorrow,
+          startingWord,
           difficulty,
         })
         .onConflictDoNothing()

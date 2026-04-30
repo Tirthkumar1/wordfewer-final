@@ -1,5 +1,6 @@
 export const StorageKeys = {
   DEVICE_ID: 'wordfever_device_id',
+  USERNAME: 'wordfever_username',
   PERSONAL_BEST: 'wordfever_personal_best',
   STREAK: 'wordfever_streak',
   TOTAL_WORDS: 'wordfever_total_words',

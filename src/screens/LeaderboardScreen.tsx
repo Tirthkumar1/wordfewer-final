@@ -1,5 +1,3 @@
-import MaskedView from '@react-native-masked-view/masked-view'
-import { LinearGradient } from 'expo-linear-gradient'
 import React, { useEffect, useState } from 'react'
 import {
   ActivityIndicator,
@@ -11,7 +9,7 @@ import {
   View,
 } from 'react-native'
 import { getLeaderboard, type LeaderboardEntry } from '../db/dbService'
-import { useGame } from '../store/gameStore'
+import { useGame, TIMER_OPTIONS, type TimerMode } from '../store/gameStore'
 import { Colors, Fonts } from '../theme'
 
 type Period = 'today' | 'week' | 'alltime'
@@ -54,16 +52,17 @@ function RankCell({ rank }: { rank: number }) {
 export default function LeaderboardScreen() {
   const { state } = useGame()
   const [period, setPeriod] = useState<Period>('alltime')
+  const [timerFilter, setTimerFilter] = useState<TimerMode>(state.timerMode)
   const [entries, setEntries] = useState<LeaderboardEntry[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     load()
-  }, [period, state.languageId])
+  }, [period, timerFilter, state.languageId])
 
   async function load() {
     setLoading(true)
-    const data = await getLeaderboard(state.languageId, period, 50)
+    const data = await getLeaderboard(state.languageId, period, timerFilter, 50)
     setEntries(data)
     setLoading(false)
   }
@@ -82,11 +81,7 @@ export default function LeaderboardScreen() {
 
       {/* Header */}
       <View style={styles.header}>
-        <MaskedView maskElement={<Text style={styles.wordmark}>WordFever</Text>}>
-          <LinearGradient colors={['#6C47FF', '#FFB3AF']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
-            <Text style={[styles.wordmark, { opacity: 0 }]}>WordFever</Text>
-          </LinearGradient>
-        </MaskedView>
+        <Text style={styles.wordmark}>WordFever</Text>
         <Text style={styles.headerSub}>
           {LANG_FLAGS[state.languageId] ?? '🌍'} {state.languageId.toUpperCase()} Leaderboard
         </Text>
@@ -107,21 +102,31 @@ export default function LeaderboardScreen() {
         ))}
       </View>
 
+      {/* Timer filter */}
+      <View style={styles.timerFilterRow}>
+        {TIMER_OPTIONS.map((t) => (
+          <Pressable
+            key={t}
+            style={[styles.timerPill, timerFilter === t && styles.timerPillActive]}
+            onPress={() => setTimerFilter(t)}
+          >
+            <Text style={[styles.timerPillText, timerFilter === t && styles.timerPillTextActive]}>
+              {t}s
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+
       {/* My rank card */}
       {topEntry && (
-        <LinearGradient
-          colors={['#6C47FF', '#920418']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={styles.myRankCard}
-        >
+        <View style={styles.myRankCard}>
           <Text style={styles.myRankLabel}>TOP SCORE</Text>
           <Text style={styles.myRankValue}>{topEntry.score}</Text>
           <View style={styles.myRankUser}>
             <Avatar name={topEntry.username} size={28} />
             <Text style={styles.myRankName}>{topEntry.username}</Text>
           </View>
-        </LinearGradient>
+        </View>
       )}
 
       {/* List */}
@@ -183,8 +188,33 @@ const styles = StyleSheet.create({
   filterRow: {
     flexDirection: 'row',
     paddingHorizontal: 20,
-    paddingVertical: 12,
+    paddingTop: 12,
+    paddingBottom: 4,
     gap: 8,
+  },
+  timerFilterRow: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    paddingBottom: 12,
+    gap: 6,
+  },
+  timerPill: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: Colors.surfaceHigh,
+    alignItems: 'center',
+  },
+  timerPillActive: {
+    backgroundColor: Colors.primaryContainer,
+  },
+  timerPillText: {
+    fontFamily: Fonts.bodyMedium,
+    fontSize: 12,
+    color: Colors.onSurfaceVariant,
+  },
+  timerPillTextActive: {
+    color: '#ffffff',
   },
   filterPill: {
     flex: 1,
@@ -202,6 +232,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 16,
     marginBottom: 12,
+    backgroundColor: Colors.primaryContainer,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,

@@ -1,6 +1,5 @@
 import React, {
   createContext,
-  useCallback,
   useContext,
   useMemo,
   useReducer,
@@ -10,6 +9,8 @@ import { ChainValidator } from '../engine/ChainValidator'
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type Status = 'idle' | 'playing' | 'paused' | 'gameover'
+export type TimerMode = 10 | 20 | 30 | 40 | 50 | 60
+export const TIMER_OPTIONS: TimerMode[] = [10, 20, 30, 40, 50, 60]
 
 interface GameState {
   status: Status
@@ -22,6 +23,7 @@ interface GameState {
   score: number
   timeRemaining: number
   baseTime: number
+  timerMode: TimerMode
   wordCount: number
   personalBest: { chain: number; score: number }
   sessionStartTime: number
@@ -32,6 +34,7 @@ interface GameState {
 
 type Action =
   | { type: 'SET_LANGUAGE'; payload: { languageId: string; script: string; chainRule: string; wordlist: string[] } }
+  | { type: 'SET_TIMER'; payload: TimerMode }
   | { type: 'START_GAME'; payload?: string }
   | { type: 'SUBMIT_WORD'; payload: string }
   | { type: 'TICK' }
@@ -54,6 +57,7 @@ const INITIAL_STATE: GameState = {
   score: 0,
   timeRemaining: 10,
   baseTime: 10,
+  timerMode: 10,
   wordCount: 0,
   personalBest: { chain: 0, score: 0 },
   sessionStartTime: 0,
@@ -85,6 +89,9 @@ function reducer(state: GameState, action: Action): GameState {
         wordlist: action.payload.wordlist,
       }
 
+    case 'SET_TIMER':
+      return { ...state, timerMode: action.payload, baseTime: action.payload, timeRemaining: action.payload }
+
     case 'START_GAME': {
       const validator = makeValidator(state)
       const startWord = action.payload ?? pickRandom(state.wordlist)
@@ -96,8 +103,8 @@ function reducer(state: GameState, action: Action): GameState {
         requiredUnit: validator.getEndUnit(startWord),
         score: 0,
         wordCount: 1,
-        baseTime: 10,
-        timeRemaining: 10,
+        baseTime: state.timerMode,
+        timeRemaining: state.timerMode,
         sessionStartTime: Date.now(),
         invalidAttempt: false,
         lastBonus: null,
@@ -106,14 +113,17 @@ function reducer(state: GameState, action: Action): GameState {
 
     case 'SUBMIT_WORD': {
       if (state.status !== 'playing') return state
-      const word = action.payload.trim()
+      const word = action.payload.trim().toLowerCase()
       const validator = makeValidator(state)
 
-      if (!validator.isInDictionary(word) || !validator.isValidChain(state.currentWord, word)) {
+      if (
+        !validator.isInDictionary(word) ||
+        !validator.isValidChain(state.currentWord, word) ||
+        state.chain.includes(word.toLowerCase())
+      ) {
         return { ...state, invalidAttempt: true, lastBonus: null }
       }
 
-      let bonus = 0
       let lastBonus: GameState['lastBonus'] = null
       const newChain = [...state.chain, word]
       let newScore = state.score + word.length * 10
@@ -130,7 +140,7 @@ function reducer(state: GameState, action: Action): GameState {
 
       const newWordCount = state.wordCount + 1
       const newBaseTime = newWordCount % 5 === 0
-        ? Math.max(5, state.baseTime - 0.5)
+        ? Math.max(state.timerMode * 0.5, state.baseTime - 0.5)
         : state.baseTime
 
       return {
@@ -169,7 +179,7 @@ function reducer(state: GameState, action: Action): GameState {
       return { ...state, timeRemaining: state.timeRemaining + action.payload }
 
     case 'RESET':
-      return { ...INITIAL_STATE, personalBest: state.personalBest }
+      return { ...INITIAL_STATE, personalBest: state.personalBest, timerMode: state.timerMode, wordlist: state.wordlist, languageId: state.languageId, script: state.script, chainRule: state.chainRule }
 
     default:
       return state

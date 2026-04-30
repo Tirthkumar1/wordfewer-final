@@ -1,5 +1,3 @@
-import MaskedView from '@react-native-masked-view/masked-view'
-import { LinearGradient } from 'expo-linear-gradient'
 import { useNavigation } from '@react-navigation/native'
 import type { StackNavigationProp } from '@react-navigation/stack'
 import React, { useEffect, useState } from 'react'
@@ -22,7 +20,7 @@ import {
   getTodayDailyResult,
   type LeaderboardEntry,
 } from '../db/dbService'
-import { useGame } from '../store/gameStore'
+import { useGame, TIMER_OPTIONS } from '../store/gameStore'
 import { Colors, Fonts } from '../theme'
 
 type Nav = StackNavigationProp<RootStackParamList>
@@ -76,7 +74,7 @@ export default function DailyChallengeScreen() {
     const [ch, result, scores] = await Promise.all([
       getDailyChallenge(state.languageId),
       getTodayDailyResult(state.languageId),
-      getLeaderboard(state.languageId, 'today', 3),
+      getLeaderboard(state.languageId, 'today', state.timerMode, 3),
     ])
     setChallenge(ch ? { startingWord: ch.startingWord, difficulty: ch.difficulty ?? 'medium' } : null)
     setTodayResult(result ? { chainLength: result.chainLength, score: result.score } : null)
@@ -97,11 +95,7 @@ export default function DailyChallengeScreen() {
 
       {/* Header */}
       <View style={styles.header}>
-        <MaskedView maskElement={<Text style={styles.wordmark}>WordFever</Text>}>
-          <LinearGradient colors={['#6C47FF', '#FFB3AF']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
-            <Text style={[styles.wordmark, { opacity: 0 }]}>WordFever</Text>
-          </LinearGradient>
-        </MaskedView>
+        <Text style={styles.wordmark}>WordFever</Text>
         <Text style={styles.dateLabel}>{today}</Text>
       </View>
 

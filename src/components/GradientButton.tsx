@@ -1,4 +1,3 @@
-import { LinearGradient } from 'expo-linear-gradient'
 import React, { useRef } from 'react'
 import {
   Animated,
@@ -8,7 +7,7 @@ import {
   type StyleProp,
   type ViewStyle,
 } from 'react-native'
-import { Fonts } from '../theme'
+import { Colors, Fonts } from '../theme'
 
 interface Props {
   label: string
@@ -21,21 +20,11 @@ export default function GradientButton({ label, onPress, style, disabled }: Prop
   const scale = useRef(new Animated.Value(1)).current
 
   function handlePressIn() {
-    Animated.spring(scale, {
-      toValue: 0.97,
-      useNativeDriver: true,
-      speed: 40,
-      bounciness: 4,
-    }).start()
+    Animated.spring(scale, { toValue: 0.97, useNativeDriver: true, speed: 40, bounciness: 4 }).start()
   }
 
   function handlePressOut() {
-    Animated.spring(scale, {
-      toValue: 1,
-      useNativeDriver: true,
-      speed: 40,
-      bounciness: 4,
-    }).start()
+    Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 40, bounciness: 4 }).start()
   }
 
   return (
@@ -45,35 +34,23 @@ export default function GradientButton({ label, onPress, style, disabled }: Prop
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
         disabled={disabled}
-        style={({ pressed }) => [styles.pressable, disabled && styles.disabled]}
+        style={[styles.btn, disabled && styles.disabled]}
       >
-        <LinearGradient
-          colors={['#6C47FF', '#FFB3AF']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={styles.gradient}
-        >
-          <Text style={styles.label}>{label}</Text>
-        </LinearGradient>
+        <Text style={styles.label}>{label}</Text>
       </Pressable>
     </Animated.View>
   )
 }
 
 const styles = StyleSheet.create({
-  pressable: {
-    borderRadius: 14,
-    overflow: 'hidden',
-  },
-  disabled: {
-    opacity: 0.5,
-  },
-  gradient: {
+  btn: {
     height: 56,
+    borderRadius: 14,
+    backgroundColor: Colors.primaryContainer,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 14,
   },
+  disabled: { opacity: 0.5 },
   label: {
     fontFamily: Fonts.game,
     fontSize: 20,

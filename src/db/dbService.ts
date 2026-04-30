@@ -14,13 +14,15 @@ export async function getDeviceId(): Promise<string> {
 }
 
 export async function submitScore(
+  userId: string | null,
   username: string,
   languageId: string,
+  timerMode: number,
   chainLength: number,
   score: number,
 ): Promise<boolean> {
   try {
-    await db.insert(scores).values({ username, languageId, chainLength, score })
+    await db.insert(scores).values({ userId, username, languageId, timerMode, chainLength, score })
     return true
   } catch (e) {
     console.error('submitScore failed:', e)
@@ -31,6 +33,7 @@ export async function submitScore(
 export type LeaderboardEntry = {
   username: string
   languageId: string
+  timerMode: number | null
   chainLength: number
   score: number
   playedAt: Date | null
@@ -39,16 +42,19 @@ export type LeaderboardEntry = {
 export async function getLeaderboard(
   languageId: string,
   period: 'today' | 'week' | 'alltime',
+  timerMode: number,
   limit = 50,
 ): Promise<LeaderboardEntry[]> {
   try {
     const now = new Date()
+    const timerFilter = eq(scores.timerMode, timerMode)
+    const langFilter = eq(scores.languageId, languageId)
 
     if (period === 'today') {
       const start = new Date(now)
       start.setHours(0, 0, 0, 0)
       return await db.select().from(scores)
-        .where(and(eq(scores.languageId, languageId), gte(scores.playedAt, start)))
+        .where(and(langFilter, timerFilter, gte(scores.playedAt, start)))
         .orderBy(desc(scores.score))
         .limit(limit) as LeaderboardEntry[]
     }
@@ -57,13 +63,13 @@ export async function getLeaderboard(
       const start = new Date(now)
       start.setDate(start.getDate() - 7)
       return await db.select().from(scores)
-        .where(and(eq(scores.languageId, languageId), gte(scores.playedAt, start)))
+        .where(and(langFilter, timerFilter, gte(scores.playedAt, start)))
         .orderBy(desc(scores.score))
         .limit(limit) as LeaderboardEntry[]
     }
 
     return await db.select().from(scores)
-      .where(eq(scores.languageId, languageId))
+      .where(and(langFilter, timerFilter))
       .orderBy(desc(scores.score))
       .limit(limit) as LeaderboardEntry[]
   } catch (e) {

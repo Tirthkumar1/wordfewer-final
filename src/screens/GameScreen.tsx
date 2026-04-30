@@ -4,15 +4,17 @@ import type { RouteProp } from '@react-navigation/native'
 import type { StackNavigationProp } from '@react-navigation/stack'
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import {
-  Animated, Easing, Keyboard, Modal, Pressable,
+  Animated, Easing, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable,
   ScrollView, StatusBar, StyleSheet, Text, TextInput, View,
 } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import Svg, { Path } from 'react-native-svg'
 import GhostButton from '../components/GhostButton'
 import GradientButton from '../components/GradientButton'
 import NeuralBackground from '../components/NeuralBackground'
 import Toast from '../components/Toast'
 import { submitDailyResult } from '../db/dbService'
+import { getWordlist, getLangConfig } from '../config/wordlists'
 import type { RootStackParamList } from '../navigation/AppNavigator'
 import { useGame } from '../store/gameStore'
 import { Colors, Fonts, getNativeFont } from '../theme'
@@ -104,6 +106,8 @@ export default function GameScreen() {
   const [showFreeze, setShowFreeze] = useState(false)
   const [toast, setToast] = useState<{ message: string; variant: 'success' | 'error' | 'bonus' | 'milestone' } | null>(null)
   const [toastVisible, setToastVisible] = useState(false)
+  const prevChainLenRef = useRef(0)
+  const pendingSubmitRef = useRef(false)
 
   const inputRef = useRef<TextInput>(null)
   const trailRef = useRef<ScrollView>(null)
@@ -115,6 +119,7 @@ export default function GameScreen() {
   const wordOpacityAnim = useRef(new Animated.Value(0)).current
   const freezeShownAt = useRef<number>(-1)
 
+  const insets = useSafeAreaInsets()
   const { status, timeRemaining, baseTime, chain, score, currentWord, requiredUnit, script, languageId } = state
   const isIndic = script === 'gujarati' || script === 'devanagari'
 
@@ -132,12 +137,27 @@ export default function GameScreen() {
     }
   }, [status])
 
-  // Auto-start game if idle
+  // Load wordlist then start game
   useEffect(() => {
-    if (status === 'idle') {
+    if (state.wordlist.length === 0) {
+      const langId = state.languageId || 'en'
+      const words = getWordlist(langId)
+      const cfg = getLangConfig(langId)
+      dispatch({
+        type: 'SET_LANGUAGE',
+        payload: { languageId: langId, script: cfg.script, chainRule: cfg.chainRule, wordlist: words },
+      })
+    } else if (status === 'idle') {
       dispatch({ type: 'START_GAME', payload: isDailyChallenge ? dailyStartingWord : undefined })
     }
   }, [])
+
+  // Start game once wordlist is loaded
+  useEffect(() => {
+    if (status === 'idle' && state.wordlist.length > 0) {
+      dispatch({ type: 'START_GAME', payload: isDailyChallenge ? dailyStartingWord : undefined })
+    }
+  }, [state.wordlist.length, status])
 
   // Tick interval
   useEffect(() => {
@@ -187,8 +207,8 @@ export default function GameScreen() {
   useEffect(() => {
     const loop = Animated.loop(
       Animated.sequence([
-        Animated.timing(pulseAnim, { toValue: 1.04, duration: 1000, useNativeDriver: true, easing: Easing.inOut(Easing.sine) }),
-        Animated.timing(pulseAnim, { toValue: 1.0, duration: 1000, useNativeDriver: true, easing: Easing.inOut(Easing.sine) }),
+        Animated.timing(pulseAnim, { toValue: 1.04, duration: 1000, useNativeDriver: true, easing: Easing.inOut(Easing.sin) }),
+        Animated.timing(pulseAnim, { toValue: 1.0, duration: 1000, useNativeDriver: true, easing: Easing.inOut(Easing.sin) }),
       ]),
     )
     loop.start()
@@ -215,36 +235,34 @@ export default function GameScreen() {
     setToastVisible(true)
   }
 
+  // React to state changes after SUBMIT_WORD
+  useEffect(() => {
+    if (!pendingSubmitRef.current) return
+    pendingSubmitRef.current = false
+    if (chain.length > prevChainLenRef.current) {
+      const word = chain[chain.length - 1]
+      const pts = word.length * 10
+      if (state.lastBonus === 'rare') {
+        showToast(`★ Rare letter! +${pts + 60} pts`, 'bonus')
+      } else if (state.lastBonus === 'milestone') {
+        showToast(`🔗 Chain of ${chain.length}! Keep going!`, 'milestone')
+      } else {
+        showToast(`+${pts} pts`, 'success')
+      }
+    } else {
+      showToast('Not in dictionary or already used', 'error')
+    }
+    prevChainLenRef.current = chain.length
+  }, [state.invalidAttempt, chain.length, state.lastBonus])
+
   const handleSubmit = useCallback(() => {
     const word = input.trim()
     if (!word) return
-    const prevChainLen = chain.length
-
+    prevChainLenRef.current = chain.length
+    pendingSubmitRef.current = true
     dispatch({ type: 'SUBMIT_WORD', payload: word })
-
-    // Evaluate result based on current state before dispatch
-    const { invalidAttempt, lastBonus } = state
-
     setInput('')
-
-    // We read next render state via a tiny delay
-    setTimeout(() => {
-      const newState = state
-      if (state.chain.length > prevChainLen) {
-        // word was accepted
-        const pts = word.length * 10
-        if (state.lastBonus === 'rare') {
-          showToast(`★ Rare letter! +${pts + 60} pts`, 'bonus')
-        } else if (state.lastBonus === 'milestone') {
-          showToast(`🔗 Chain of ${state.chain.length}! Keep going!`, 'milestone')
-        } else {
-          showToast(`✓ +${pts} pts`, 'success')
-        }
-      } else {
-        showToast('✗ Not in dictionary', 'error')
-      }
-    }, 50)
-  }, [input, chain.length, state, dispatch])
+  }, [input, chain.length, dispatch])
 
   async function handleFreezeAccept() {
     setShowFreeze(false)
@@ -276,12 +294,16 @@ export default function GameScreen() {
   const romanization = isIndic ? getRomanization(requiredUnit) : null
 
   return (
-    <View style={styles.root}>
+    <KeyboardAvoidingView
+      style={styles.root}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={insets.bottom}
+    >
       <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
       <NeuralBackground />
 
       {/* TOP BAR */}
-      <View style={styles.topBar}>
+      <View style={[styles.topBar, { paddingTop: Math.max(insets.top, 16) + 8 }]}>
         {/* Chain counter */}
         <View style={styles.chainPill}>
           <LinkSmallIcon />
@@ -437,7 +459,7 @@ export default function GameScreen() {
           </View>
         </View>
       </Modal>
-    </View>
+    </KeyboardAvoidingView>
   )
 }
 

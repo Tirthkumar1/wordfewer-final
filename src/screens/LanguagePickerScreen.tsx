@@ -15,11 +15,13 @@ import {
 import Svg, { Circle, Path } from 'react-native-svg'
 import GradientButton from '../components/GradientButton'
 import NeuralBackground from '../components/NeuralBackground'
-// Stubbed for local testing
-const purchaseAllLanguages = async () => false
+import { getWordlist } from '../config/wordlists'
 import { useGame } from '../store/gameStore'
 import { Colors, Fonts, getNativeFont } from '../theme'
 import type { RootStackParamList } from '../navigation/AppNavigator'
+
+// Stubbed for local testing
+const purchaseAllLanguages = async () => false
 
 type Nav = StackNavigationProp<RootStackParamList>
 
@@ -160,14 +162,14 @@ export default function LanguagePickerScreen() {
   function handleConfirm() {
     const lang = LANGUAGES.find((l) => l.id === selected)
     if (!lang) return
-    // wordlist loaded lazily by the screen/game start
+    const words = getWordlist(lang.id)
     dispatch({
       type: 'SET_LANGUAGE',
       payload: {
         languageId: lang.id,
         script: lang.script,
         chainRule: lang.chainRule,
-        wordlist: [],
+        wordlist: words,
       },
     })
     if (navigation.canGoBack()) navigation.goBack()

@@ -1,20 +1,24 @@
-import MaskedView from '@react-native-masked-view/masked-view'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { LinearGradient } from 'expo-linear-gradient'
-import React, { useEffect, useState } from 'react'
+import { useFocusEffect } from '@react-navigation/native'
+import React, { useCallback, useState } from 'react'
 import {
+  Alert,
+  Image,
+  Modal,
   Pressable,
   ScrollView,
   Share,
   StatusBar,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native'
 import Svg, { Circle, Path } from 'react-native-svg'
 import GhostButton from '../components/GhostButton'
 import GradientButton from '../components/GradientButton'
 import { StorageKeys } from '../config/storageKeys'
+import { getStoredUser, signOut, type GoogleUser } from '../services/AuthService'
 import { useGame } from '../store/gameStore'
 import { Colors, Fonts } from '../theme'
 
@@ -74,48 +78,82 @@ export default function ProfileScreen() {
   const [stats, setStats] = useState<Stats>({
     bestChain: 0, bestScore: 0, totalWords: 0, streak: 0, joinDate: '',
   })
+  const [googleUser, setGoogleUser] = useState<GoogleUser | null>(null)
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [editInput, setEditInput] = useState('')
 
-  useEffect(() => {
-    async function load() {
-      const [pb, streak, total, join] = await Promise.all([
-        AsyncStorage.getItem(StorageKeys.PERSONAL_BEST),
-        AsyncStorage.getItem(StorageKeys.STREAK),
-        AsyncStorage.getItem(StorageKeys.TOTAL_WORDS),
-        AsyncStorage.getItem(StorageKeys.JOIN_DATE),
-      ])
+  useFocusEffect(useCallback(() => { load() }, []))
 
-      const today = new Date().toISOString().split('T')[0]
-      if (!join) await AsyncStorage.setItem(StorageKeys.JOIN_DATE, today)
+  async function load() {
+    const [pb, streak, total, join, gUser] = await Promise.all([
+      AsyncStorage.getItem(StorageKeys.PERSONAL_BEST),
+      AsyncStorage.getItem(StorageKeys.STREAK),
+      AsyncStorage.getItem(StorageKeys.TOTAL_WORDS),
+      AsyncStorage.getItem(StorageKeys.JOIN_DATE),
+      getStoredUser(),
+    ])
+    const today = new Date().toISOString().split('T')[0]
+    if (!join) await AsyncStorage.setItem(StorageKeys.JOIN_DATE, today)
+    const pbParsed = pb ? JSON.parse(pb) : { chain: 0, score: 0 }
+    setStats({
+      bestChain: pbParsed.chain ?? 0,
+      bestScore: pbParsed.score ?? 0,
+      totalWords: parseInt(total ?? '0', 10),
+      streak: parseInt(streak ?? '0', 10),
+      joinDate: join ?? today,
+    })
+    if (gUser) setGoogleUser(gUser)
+  }
 
-      const pbParsed = pb ? JSON.parse(pb) : { chain: 0, score: 0 }
-      setStats({
-        bestChain: pbParsed.chain ?? 0,
-        bestScore: pbParsed.score ?? 0,
-        totalWords: parseInt(total ?? '0', 10),
-        streak: parseInt(streak ?? '0', 10),
-        joinDate: join ?? today,
-      })
-    }
-    load()
-  }, [])
+  const username = googleUser?.name ?? 'Player'
 
-  const username = 'Player'
+  async function handleSaveUsername() {
+    const name = editInput.trim()
+    if (!name) return
+    await AsyncStorage.setItem(StorageKeys.USERNAME, name)
+    if (googleUser) setGoogleUser({ ...googleUser, name })
+    setShowEditModal(false)
+  }
+
+  async function handleSignOut() {
+    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Sign Out',
+        style: 'destructive',
+        onPress: async () => {
+          await signOut()
+          // App.tsx will detect no stored user and show SignInScreen on next launch.
+          // For immediate effect, just clear local state.
+          Alert.alert('Signed out', 'Restart the app to sign in again.')
+        },
+      },
+    ])
+  }
+
   const joinFormatted = stats.joinDate
     ? new Date(stats.joinDate).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
     : '—'
 
   const achievements: Achievement[] = [
-    { id: 'chain_master', label: 'Chain Master', description: '50+ word chain', icon: '🔗', earned: stats.bestChain >= 50 },
-    { id: 'polyglot', label: 'Polyglot', description: 'Play 3 languages', icon: '🌍', earned: false },
-    { id: 'daily_devotee', label: 'Daily Devotee', description: '7-day streak', icon: '🔥', earned: stats.streak >= 7 },
-    { id: 'rare_hunter', label: 'Rare Hunter', description: 'Use Q, X or Z', icon: '⭐', earned: stats.totalWords > 10 },
-    { id: 'high_scorer', label: 'High Scorer', description: 'Score 1000+ pts', icon: '🏆', earned: stats.bestScore >= 1000 },
+    { id: 'first_chain',   label: 'First Chain',    description: 'Complete a game',      icon: '🎮', earned: stats.totalWords > 0 },
+    { id: 'chain_10',      label: 'Chain x10',      description: '10+ word chain',        icon: '🔗', earned: stats.bestChain >= 10 },
+    { id: 'chain_25',      label: 'Chain x25',      description: '25+ word chain',        icon: '⛓️', earned: stats.bestChain >= 25 },
+    { id: 'chain_master',  label: 'Chain Master',   description: '50+ word chain',        icon: '🧠', earned: stats.bestChain >= 50 },
+    { id: 'score_1k',      label: 'Four Figures',   description: 'Score 1,000+ pts',      icon: '💯', earned: stats.bestScore >= 1000 },
+    { id: 'score_10k',     label: 'Ten Grand',      description: 'Score 10,000+ pts',     icon: '🏅', earned: stats.bestScore >= 10000 },
+    { id: 'score_20k',     label: 'Word Wizard',    description: 'Score 20,000+ pts',     icon: '🧙', earned: stats.bestScore >= 20000 },
+    { id: 'score_50k',     label: 'Legendary',      description: 'Score 50,000+ pts',     icon: '👑', earned: stats.bestScore >= 50000 },
+    { id: 'daily_devotee', label: 'Daily Devotee',  description: '7-day streak',          icon: '🔥', earned: stats.streak >= 7 },
+    { id: 'polyglot',      label: 'Polyglot',       description: 'Play 3+ languages',     icon: '🌍', earned: false },
+    { id: 'word_100',      label: 'Century',        description: '100 total words played', icon: '💪', earned: stats.totalWords >= 100 },
+    { id: 'word_1k',       label: 'Wordsmith',      description: '1,000 words played',    icon: '📖', earned: stats.totalWords >= 1000 },
   ]
 
   async function handleShareProfile() {
     try {
       await Share.share({
-        message: `I've chained ${stats.bestChain} words and scored ${stats.bestScore} pts on WordFever! Can you beat me?`,
+        message: `I'm ${username} on WordFever! Best chain: ${stats.bestChain} words, best score: ${stats.bestScore} pts. Can you beat me?`,
       })
     } catch {}
   }
@@ -125,23 +163,28 @@ export default function ProfileScreen() {
       <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Gradient top strip */}
-        <LinearGradient colors={['#6C47FF22', '#13121b']} style={styles.topStrip} />
 
         {/* Avatar */}
         <View style={styles.avatarSection}>
-          <LinearGradient
-            colors={['#6C47FF', '#FFB3AF']}
-            style={styles.avatarGradientRing}
-          >
-            <View style={styles.avatarInner}>
-              <Text style={styles.avatarInitial}>{username[0].toUpperCase()}</Text>
-            </View>
-          </LinearGradient>
+          <View style={styles.avatarRing}>
+            {googleUser?.photo ? (
+              <Image source={{ uri: googleUser.photo }} style={styles.avatarPhoto} />
+            ) : (
+              <View style={styles.avatarInner}>
+                <Text style={styles.avatarInitial}>{username[0].toUpperCase()}</Text>
+              </View>
+            )}
+          </View>
           <View style={styles.verifiedRow}>
-            <Text style={styles.username}>{username}</Text>
+            <Text style={styles.usernameText}>{username}</Text>
             <VerifiedIcon />
           </View>
+          {googleUser?.email ? (
+            <Text style={styles.emailText}>{googleUser.email}</Text>
+          ) : null}
+          <Pressable onPress={() => { setEditInput(username); setShowEditModal(true) }}>
+            <Text style={styles.editLink}>Edit display name</Text>
+          </Pressable>
           <Text style={styles.joinDate}>Playing since {joinFormatted}</Text>
           <View style={styles.langPill}>
             <Text style={styles.langPillText}>
@@ -181,19 +224,41 @@ export default function ProfileScreen() {
         </View>
 
         {/* Buttons */}
-        <GradientButton
-          label="Remove Ads 👑"
-          onPress={() => console.log('IAP stub: remove ads')}
-          style={styles.btn}
-        />
-        <GhostButton
-          label="Share Profile"
-          onPress={handleShareProfile}
-          style={styles.btn}
-        />
+        <GhostButton label="Share Profile" onPress={handleShareProfile} style={styles.btn} />
+        <Pressable style={styles.signOutBtn} onPress={handleSignOut}>
+          <Text style={styles.signOutText}>Sign Out</Text>
+        </Pressable>
 
         <View style={{ height: 100 }} />
       </ScrollView>
+
+      {/* Edit username modal */}
+      <Modal visible={showEditModal} transparent animationType="fade">
+        <View style={styles.overlay}>
+          <View style={styles.editCard}>
+            <Text style={styles.editTitle}>Change Username</Text>
+            <TextInput
+              style={styles.editInput}
+              value={editInput}
+              onChangeText={setEditInput}
+              placeholder="New username"
+              placeholderTextColor="#484556"
+              autoCapitalize="none"
+              autoCorrect={false}
+              maxLength={20}
+              autoFocus
+            />
+            <View style={styles.editBtns}>
+              <Pressable style={styles.editCancel} onPress={() => setShowEditModal(false)}>
+                <Text style={styles.editCancelText}>Cancel</Text>
+              </Pressable>
+              <Pressable style={styles.editSave} onPress={handleSaveUsername}>
+                <Text style={styles.editSaveText}>Save</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   )
 }
@@ -202,21 +267,24 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.background },
   scrollContent: { paddingHorizontal: 20 },
 
-  topStrip: { position: 'absolute', top: 0, left: 0, right: 0, height: 200 },
-
   avatarSection: { alignItems: 'center', paddingTop: 64, paddingBottom: 24, gap: 6 },
-  avatarGradientRing: {
+  avatarRing: {
     width: 100, height: 100, borderRadius: 50,
-    padding: 3, marginBottom: 4,
+    borderWidth: 3, borderColor: Colors.primaryContainer,
+    alignItems: 'center', justifyContent: 'center',
+    marginBottom: 4,
   },
   avatarInner: {
-    flex: 1, borderRadius: 47,
+    width: 88, height: 88, borderRadius: 44,
     backgroundColor: Colors.surfaceHigh,
     alignItems: 'center', justifyContent: 'center',
   },
+  avatarPhoto: { width: 88, height: 88, borderRadius: 44 },
   avatarInitial: { fontFamily: Fonts.headlineEB, fontSize: 36, color: Colors.primary },
   verifiedRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  username: { fontFamily: Fonts.headlineEB, fontSize: 22, color: Colors.onSurface },
+  usernameText: { fontFamily: Fonts.headlineEB, fontSize: 22, color: Colors.onSurface },
+  emailText: { fontFamily: Fonts.body, fontSize: 13, color: Colors.onSurfaceVariant, marginTop: -2 },
+  editLink: { fontFamily: Fonts.body, fontSize: 12, color: Colors.primaryContainer, marginTop: 2 },
   joinDate: { fontFamily: Fonts.body, fontSize: 13, color: Colors.onSurfaceVariant },
   langPill: {
     backgroundColor: Colors.surfaceHigh, borderRadius: 999,
@@ -224,9 +292,7 @@ const styles = StyleSheet.create({
   },
   langPillText: { fontFamily: Fonts.bodyMedium, fontSize: 12, color: Colors.onSurface },
 
-  statsGrid: {
-    flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 28,
-  },
+  statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 28 },
   statBox: {
     flex: 1, minWidth: '44%',
     backgroundColor: Colors.surface, borderRadius: 16,
@@ -264,4 +330,42 @@ const styles = StyleSheet.create({
   langChipText: { fontFamily: Fonts.bodyMedium, fontSize: 13, color: Colors.onSurface },
 
   btn: { marginBottom: 12 },
+  signOutBtn: {
+    alignItems: 'center',
+    paddingVertical: 14,
+    marginTop: 4,
+  },
+  signOutText: {
+    fontFamily: Fonts.bodyMedium,
+    fontSize: 15,
+    color: Colors.secondary,
+  },
+
+  overlay: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.7)',
+    alignItems: 'center', justifyContent: 'center', padding: 24,
+  },
+  editCard: {
+    width: '100%', backgroundColor: Colors.surfaceHigh,
+    borderRadius: 20, padding: 24, gap: 16,
+  },
+  editTitle: { fontFamily: Fonts.bodyMedium, fontSize: 18, color: Colors.onSurface, textAlign: 'center' },
+  editInput: {
+    backgroundColor: Colors.background, borderRadius: 12,
+    height: 50, paddingHorizontal: 16,
+    fontFamily: Fonts.body, fontSize: 16, color: Colors.onSurface,
+  },
+  editBtns: { flexDirection: 'row', gap: 12 },
+  editCancel: {
+    flex: 1, height: 48, borderRadius: 12,
+    backgroundColor: Colors.surfaceHigh,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  editCancelText: { fontFamily: Fonts.bodyMedium, fontSize: 15, color: Colors.onSurfaceVariant },
+  editSave: {
+    flex: 1, height: 48, borderRadius: 12,
+    backgroundColor: Colors.primaryContainer,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  editSaveText: { fontFamily: Fonts.bodyMedium, fontSize: 15, color: '#ffffff' },
 })

@@ -144,7 +144,7 @@ export default function HomeScreen() {
         <View style={styles.bannerContainer}>
           <BannerAd
             unitId={BANNER_ID}
-            size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
+            size={BannerAdSize.MEDIUM_RECTANGLE}
             requestOptions={{ requestNonPersonalizedAdsOnly: true }}
           />
         </View>
@@ -255,6 +255,9 @@ const styles = StyleSheet.create({
   timerChipTextActive: { color: '#ffffff' },
   bannerContainer: {
     alignItems: 'center',
-    marginTop: 4,
+    marginTop: 8,
+    width: 300,
+    height: 250,
+    alignSelf: 'center',
   },
 })

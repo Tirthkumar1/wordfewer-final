@@ -36,7 +36,7 @@ type Action =
   | { type: 'SET_LANGUAGE'; payload: { languageId: string; script: string; chainRule: string; wordlist: string[] } }
   | { type: 'SET_TIMER'; payload: TimerMode }
   | { type: 'START_GAME'; payload?: string }
-  | { type: 'SUBMIT_WORD'; payload: string }
+  | { type: 'SUBMIT_WORD'; payload: string; forceValid?: boolean }
   | { type: 'TICK' }
   | { type: 'EXPIRE' }
   | { type: 'PAUSE' }
@@ -116,11 +116,12 @@ function reducer(state: GameState, action: Action): GameState {
       const word = action.payload.trim().toLowerCase()
       const validator = makeValidator(state)
 
-      if (
+      // forceValid=true means word was already validated remotely
+      if (!action.forceValid && (
         !validator.isInDictionary(word) ||
         !validator.isValidChain(state.currentWord, word) ||
         state.chain.includes(word.toLowerCase())
-      ) {
+      )) {
         return { ...state, invalidAttempt: true, lastBonus: null }
       }
 

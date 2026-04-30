@@ -17,6 +17,7 @@ import { submitDailyResult } from '../db/dbService'
 import { getWordlist, getLangConfig } from '../config/wordlists'
 import type { RootStackParamList } from '../navigation/AppNavigator'
 import { useGame } from '../store/gameStore'
+import { ChainValidator } from '../engine/ChainValidator'
 import { Colors, Fonts, getNativeFont } from '../theme'
 
 // Stubbed for local testing — no ads
@@ -104,10 +105,12 @@ export default function GameScreen() {
   const [input, setInput] = useState('')
   const [paused, setPaused] = useState(false)
   const [showFreeze, setShowFreeze] = useState(false)
+  const [isChecking, setIsChecking] = useState(false)
   const [toast, setToast] = useState<{ message: string; variant: 'success' | 'error' | 'bonus' | 'milestone' } | null>(null)
   const [toastVisible, setToastVisible] = useState(false)
   const prevChainLenRef = useRef(0)
   const pendingSubmitRef = useRef(false)
+  const remoteWordCache = useRef<Set<string>>(new Set())
 
   const inputRef = useRef<TextInput>(null)
   const trailRef = useRef<ScrollView>(null)
@@ -255,14 +258,75 @@ export default function GameScreen() {
     prevChainLenRef.current = chain.length
   }, [state.invalidAttempt, chain.length, state.lastBonus])
 
-  const handleSubmit = useCallback(() => {
+  async function validateRemote(word: string, langId: string): Promise<boolean> {
+    const cacheKey = `${langId}:${word}`
+    if (remoteWordCache.current.has(cacheKey)) return true
+    try {
+      const res = await fetch(
+        `https://wordfewer.netlify.app/.netlify/functions/validate-word?word=${encodeURIComponent(word)}&lang=${langId}`,
+      )
+      const data = await res.json()
+      if (data.valid) remoteWordCache.current.add(cacheKey)
+      return data.valid === true
+    } catch {
+      return false
+    }
+  }
+
+  const handleSubmit = useCallback(async () => {
     const word = input.trim()
-    if (!word) return
-    prevChainLenRef.current = chain.length
-    pendingSubmitRef.current = true
-    dispatch({ type: 'SUBMIT_WORD', payload: word })
-    setInput('')
-  }, [input, chain.length, dispatch])
+    if (!word || isChecking) return
+
+    const { chain: currentChain, currentWord, languageId, wordlist, chainRule } = state
+    const validator = new ChainValidator(wordlist, chainRule)
+
+    // Fast path: word is in local dictionary
+    const inLocal = validator.isInDictionary(word)
+    const validChain = validator.isValidChain(currentWord, word)
+    const notDuplicate = !currentChain.includes(word.toLowerCase())
+
+    if (inLocal && validChain && notDuplicate) {
+      prevChainLenRef.current = currentChain.length
+      pendingSubmitRef.current = true
+      dispatch({ type: 'SUBMIT_WORD', payload: word })
+      setInput('')
+      return
+    }
+
+    const shake = () => Animated.sequence([
+      Animated.timing(shakeAnim, { toValue: 6, duration: 60, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: -6, duration: 60, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: 6, duration: 60, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: 0, duration: 60, useNativeDriver: true }),
+    ]).start()
+
+    // Chain rule or duplicate failed — reject immediately, no point checking remote
+    if (!validChain) {
+      showToast(`Start with "${currentWord.slice(-1).toUpperCase()}"`, 'error')
+      shake()
+      return
+    }
+    if (!notDuplicate) {
+      showToast('Already used!', 'error')
+      shake()
+      return
+    }
+
+    // Word not in local dict — check remote DB
+    setIsChecking(true)
+    const valid = await validateRemote(word.toLowerCase(), languageId)
+    setIsChecking(false)
+
+    if (valid) {
+      prevChainLenRef.current = currentChain.length
+      pendingSubmitRef.current = true
+      dispatch({ type: 'SUBMIT_WORD', payload: word, forceValid: true })
+      setInput('')
+    } else {
+      showToast('Not in dictionary', 'error')
+      shake()
+    }
+  }, [input, isChecking, state, dispatch, shakeAnim])
 
   async function handleFreezeAccept() {
     setShowFreeze(false)
@@ -419,8 +483,10 @@ export default function GameScreen() {
             onSubmitEditing={handleSubmit}
             returnKeyType="send"
           />
-          <Pressable style={styles.submitBtn} onPress={handleSubmit}>
-            <ArrowUpIcon />
+          <Pressable style={[styles.submitBtn, isChecking && styles.submitBtnChecking]} onPress={handleSubmit} disabled={isChecking}>
+            {isChecking
+              ? <Text style={styles.checkingText}>...</Text>
+              : <ArrowUpIcon />}
           </Pressable>
         </View>
       </View>
@@ -678,6 +744,14 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.secondary,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  submitBtnChecking: {
+    backgroundColor: Colors.surfaceHigh,
+  },
+  checkingText: {
+    fontFamily: Fonts.headline,
+    fontSize: 18,
+    color: Colors.onSurfaceVariant,
   },
 
   // Modals

@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, integer, timestamp, date, unique } from 'drizzle-orm/pg-core'
+import { pgTable, uuid, text, integer, timestamp, date, unique, index } from 'drizzle-orm/pg-core'
 import { sql } from 'drizzle-orm'
 
 export const scores = pgTable('scores', {
@@ -11,6 +11,14 @@ export const scores = pgTable('scores', {
   score: integer('score').notNull(),
   playedAt: timestamp('played_at').defaultNow(),
 })
+
+export const words = pgTable('words', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  word: text('word').notNull(),
+  languageId: text('language_id').notNull(),
+}, (t) => ({
+  wordLangIdx: index('word_lang_idx').on(t.word, t.languageId),
+}))
 
 export const dailyChallenges = pgTable('daily_challenges', {
   id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),

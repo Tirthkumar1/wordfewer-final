@@ -17,13 +17,13 @@ import NeuralBackground from '../components/NeuralBackground'
 import type { RootStackParamList } from '../navigation/AppNavigator'
 import { submitScore } from '../db/dbService'
 import { getStoredUser } from '../services/AuthService'
+import { showInterstitial } from '../services/AdService'
+import { scheduleStreakReminder } from '../services/NotificationService'
 import { useGame } from '../store/gameStore'
 import { Colors, Fonts, getNativeFont } from '../theme'
 import { StorageKeys } from '../config/storageKeys'
 
-const showInterstitial = async () => {}
 const track = (..._args: unknown[]) => {}
-const scheduleStreakReminder = async () => {}
 
 type Nav = StackNavigationProp<RootStackParamList>
 

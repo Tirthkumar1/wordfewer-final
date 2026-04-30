@@ -17,14 +17,14 @@ const AD_IDS = {
   interstitial: __DEV__
     ? TestIds.INTERSTITIAL
     : Platform.select({
-        ios: 'ca-app-pub-3940256099942544/1033173712',
-        android: 'ca-app-pub-3940256099942544/1033173712',
+        android: 'ca-app-pub-6945189356120937/5218110223',
+        ios: 'ca-app-pub-6945189356120937/5218110223',
       })!,
   rewarded: __DEV__
     ? TestIds.REWARDED
     : Platform.select({
-        ios: 'ca-app-pub-3940256099942544/5224354917',
-        android: 'ca-app-pub-3940256099942544/5224354917',
+        android: 'ca-app-pub-XXXXXXXXXXXXXXXX/XXXXXXXXXX', // replace: AdMob rewarded unit ID
+        ios: 'ca-app-pub-XXXXXXXXXXXXXXXX/XXXXXXXXXX',
       })!,
 }
 

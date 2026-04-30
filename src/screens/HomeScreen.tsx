@@ -11,12 +11,17 @@ import {
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import Svg, { Path } from 'react-native-svg'
+import { BannerAd, BannerAdSize, TestIds } from 'react-native-google-mobile-ads'
 import GradientButton from '../components/GradientButton'
 import GhostButton from '../components/GhostButton'
 import NeuralBackground from '../components/NeuralBackground'
 import { useGame, TIMER_OPTIONS, type TimerMode } from '../store/gameStore'
 import { Colors, Fonts } from '../theme'
 import type { RootStackParamList } from '../navigation/AppNavigator'
+
+const BANNER_ID = __DEV__
+  ? TestIds.BANNER
+  : 'ca-app-pub-6945189356120937/3873238966'
 
 type Nav = StackNavigationProp<RootStackParamList>
 
@@ -134,6 +139,15 @@ export default function HomeScreen() {
           label="Daily Challenge"
           onPress={() => navigation.navigate('DailyChallenge', {})}
         />
+
+        {/* Banner ad */}
+        <View style={styles.bannerContainer}>
+          <BannerAd
+            unitId={BANNER_ID}
+            size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
+            requestOptions={{ requestNonPersonalizedAdsOnly: true }}
+          />
+        </View>
       </View>
     </View>
   )
@@ -239,4 +253,8 @@ const styles = StyleSheet.create({
     color: Colors.onSurfaceVariant,
   },
   timerChipTextActive: { color: '#ffffff' },
+  bannerContainer: {
+    alignItems: 'center',
+    marginTop: 4,
+  },
 })

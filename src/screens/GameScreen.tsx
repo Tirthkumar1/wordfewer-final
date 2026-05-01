@@ -4,7 +4,7 @@ import type { RouteProp } from '@react-navigation/native'
 import type { StackNavigationProp } from '@react-navigation/stack'
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import {
-  Animated, Easing, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable,
+  Animated, BackHandler, Easing, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable,
   ScrollView, StatusBar, StyleSheet, Text, TextInput, View,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -20,7 +20,7 @@ import { useGame } from '../store/gameStore'
 import { ChainValidator } from '../engine/ChainValidator'
 import { Colors, Fonts, getNativeFont } from '../theme'
 
-import { showRewarded } from '../services/AdService'
+import { showInterstitial, showRewarded } from '../services/AdService'
 
 type Nav = StackNavigationProp<RootStackParamList>
 type GameRoute = RouteProp<RootStackParamList, 'Game'>
@@ -50,14 +50,6 @@ function getRomanization(akshar: string): string {
 }
 
 // ─── Inline SVG icons ─────────────────────────────────────────────────────────
-
-function PauseIcon() {
-  return (
-    <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
-      <Path d="M10 4H6v16h4V4zM18 4h-4v16h4V4z" fill={Colors.onSurface} />
-    </Svg>
-  )
-}
 
 function ArrowUpIcon() {
   return (
@@ -102,7 +94,6 @@ export default function GameScreen() {
   const dailyStartingWord = route.params?.startingWord
 
   const [input, setInput] = useState('')
-  const [paused, setPaused] = useState(false)
   const [showFreeze, setShowFreeze] = useState(false)
   const [isChecking, setIsChecking] = useState(false)
   const [toast, setToast] = useState<{ message: string; variant: 'success' | 'error' | 'bonus' | 'milestone' } | null>(null)
@@ -125,18 +116,34 @@ export default function GameScreen() {
   const { status, timeRemaining, baseTime, chain, score, currentWord, requiredUnit, script, languageId } = state
   const isIndic = script === 'gujarati' || script === 'devanagari'
 
-  // Navigate to game over
+  // Block Android hardware back button during game
   useEffect(() => {
-    if (status === 'gameover') {
-      if (isDailyChallenge) {
-        submitDailyResult(state.languageId, state.chain.length, state.score)
-      }
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => true)
+    return () => sub.remove()
+  }, [])
+
+  // Block swipe/gesture back during game
+  useEffect(() => {
+    return navigation.addListener('beforeRemove', (e) => {
+      if (status !== 'gameover') e.preventDefault()
+    })
+  }, [navigation, status])
+
+  // Navigate to game over — show interstitial first
+  useEffect(() => {
+    if (status !== 'gameover') return
+    if (isDailyChallenge) {
+      submitDailyResult(state.languageId, state.chain.length, state.score)
+    }
+    const go = async () => {
+      await showInterstitial()
       navigation.replace('GameOver', {
         score: state.score,
         chainLength: state.chain.length,
         languageId: state.languageId,
       })
     }
+    go()
   }, [status])
 
   // Load wordlist then start game
@@ -333,21 +340,6 @@ export default function GameScreen() {
     if (rewarded) dispatch({ type: 'FREEZE_TIMER', payload: 5 })
   }
 
-  function handlePause() {
-    dispatch({ type: 'PAUSE' })
-    setPaused(true)
-  }
-
-  function handleResume() {
-    dispatch({ type: 'RESUME' })
-    setPaused(false)
-  }
-
-  function handleQuit() {
-    dispatch({ type: 'RESET' })
-    navigation.navigate('Tabs')
-  }
-
   const trailWords = chain.slice(-5)
   const barColor = timerColor(timeRemaining)
   const letterFont = isIndic
@@ -379,10 +371,8 @@ export default function GameScreen() {
           <Text style={styles.scoreValue}>{score}</Text>
         </View>
 
-        {/* Pause */}
-        <Pressable style={styles.pauseBtn} onPress={handlePause} hitSlop={8}>
-          <PauseIcon />
-        </Pressable>
+        {/* Spacer to keep score centered */}
+        <View style={styles.topBarSpacer} />
       </View>
 
       {/* WORD TRAIL */}
@@ -514,16 +504,6 @@ export default function GameScreen() {
         </View>
       </Modal>
 
-      {/* PAUSE MODAL */}
-      <Modal visible={paused} transparent animationType="fade">
-        <View style={styles.overlay}>
-          <View style={styles.pauseCard}>
-            <Text style={styles.pauseTitle}>Paused</Text>
-            <GradientButton label="Resume" onPress={handleResume} style={styles.modalBtn} />
-            <GhostButton label="Quit" onPress={handleQuit} style={styles.modalBtn} />
-          </View>
-        </View>
-      </Modal>
     </KeyboardAvoidingView>
   )
 }
@@ -574,13 +554,8 @@ const styles = StyleSheet.create({
     fontSize: 20,
     color: Colors.onSurface,
   },
-  pauseBtn: {
+  topBarSpacer: {
     width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: Colors.surfaceHigh,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
 
   // Trail
@@ -783,20 +758,6 @@ const styles = StyleSheet.create({
   freezeButtons: {
     flexDirection: 'row',
     gap: 12,
-  },
-  pauseCard: {
-    backgroundColor: Colors.surfaceHigh,
-    borderRadius: 20,
-    padding: 32,
-    width: '100%',
-    alignItems: 'center',
-    gap: 16,
-  },
-  pauseTitle: {
-    fontFamily: Fonts.headlineEB,
-    fontSize: 32,
-    color: Colors.onSurface,
-    marginBottom: 8,
   },
   modalBtn: {
     width: '100%',

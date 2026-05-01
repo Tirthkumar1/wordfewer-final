@@ -111,7 +111,11 @@ export default function ProfileScreen() {
     const name = editInput.trim()
     if (!name) return
     await AsyncStorage.setItem(StorageKeys.USERNAME, name)
-    if (googleUser) setGoogleUser({ ...googleUser, name })
+    if (googleUser) {
+      const updated = { ...googleUser, name }
+      await AsyncStorage.setItem('wordfewer_google_user', JSON.stringify(updated))
+      setGoogleUser(updated)
+    }
     setShowEditModal(false)
   }
 
@@ -171,7 +175,7 @@ export default function ProfileScreen() {
               <Image source={{ uri: googleUser.photo }} style={styles.avatarPhoto} />
             ) : (
               <View style={styles.avatarInner}>
-                <Text style={styles.avatarInitial}>{username[0].toUpperCase()}</Text>
+                <Text style={styles.avatarInitial}>{username[0]?.toUpperCase() ?? '?'}</Text>
               </View>
             )}
           </View>

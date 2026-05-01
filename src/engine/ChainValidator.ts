@@ -97,11 +97,6 @@ function getIndicUnit(word: string, fromEnd: boolean): string {
         continue
       }
       if (consonants.has(ch)) {
-        // Check if preceded by halant+consonant (= non-special conjunct ending)
-        // Fall back to the leading consonant of the conjunct
-        if (i >= 2 && chars[i - 1] === halant && consonants.has(chars[i - 2])) {
-          return chars[i - 2]
-        }
         return ch
       }
       if (vowels.has(ch)) return ch

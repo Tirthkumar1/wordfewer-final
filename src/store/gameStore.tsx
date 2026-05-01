@@ -141,7 +141,7 @@ function reducer(state: GameState, action: Action): GameState {
 
       const newWordCount = state.wordCount + 1
       const newBaseTime = newWordCount % 5 === 0
-        ? Math.max(state.timerMode * 0.5, state.baseTime - 0.5)
+        ? Math.max(state.timerMode * 0.5, Math.round((state.baseTime - 0.5) * 10) / 10)
         : state.baseTime
 
       return {

@@ -20,8 +20,7 @@ import { useGame } from '../store/gameStore'
 import { ChainValidator } from '../engine/ChainValidator'
 import { Colors, Fonts, getNativeFont } from '../theme'
 
-// Stubbed for local testing — no ads
-const showRewarded = async (): Promise<boolean> => true
+import { showRewarded } from '../services/AdService'
 
 type Nav = StackNavigationProp<RootStackParamList>
 type GameRoute = RouteProp<RootStackParamList, 'Game'>
@@ -192,7 +191,7 @@ export default function GameScreen() {
     }
   }, [timeRemaining, status])
 
-  // Timer bar width animation — restart each time baseTime resets
+  // Timer bar width animation — reset on new word, stop when not playing
   useEffect(() => {
     timerBarAnimation.current?.stop()
     timerBarAnim.setValue(1)
@@ -204,7 +203,7 @@ export default function GameScreen() {
     })
     timerBarAnimation.current = anim
     if (status === 'playing') anim.start()
-  }, [baseTime, currentWord])
+  }, [baseTime, currentWord, status])
 
   // Pulse animation on required letter circle
   useEffect(() => {
@@ -283,7 +282,7 @@ export default function GameScreen() {
     // Fast path: word is in local dictionary
     const inLocal = validator.isInDictionary(word)
     const validChain = validator.isValidChain(currentWord, word)
-    const notDuplicate = !currentChain.includes(word.toLowerCase())
+    const notDuplicate = !currentChain.some(w => w.toLowerCase() === word.toLowerCase())
 
     if (inLocal && validChain && notDuplicate) {
       prevChainLenRef.current = currentChain.length

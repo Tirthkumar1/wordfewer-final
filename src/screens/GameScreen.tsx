@@ -20,7 +20,7 @@ import { useGame } from '../store/gameStore'
 import { ChainValidator } from '../engine/ChainValidator'
 import { Colors, Fonts, getNativeFont } from '../theme'
 
-import { showInterstitial, showRewarded } from '../services/AdService'
+import { showRewarded } from '../services/AdService'
 
 type Nav = StackNavigationProp<RootStackParamList>
 type GameRoute = RouteProp<RootStackParamList, 'Game'>
@@ -135,15 +135,11 @@ export default function GameScreen() {
     if (isDailyChallenge) {
       submitDailyResult(state.languageId, state.chain.length, state.score)
     }
-    const go = async () => {
-      await showInterstitial()
-      navigation.replace('GameOver', {
-        score: state.score,
-        chainLength: state.chain.length,
-        languageId: state.languageId,
-      })
-    }
-    go()
+    navigation.replace('GameOver', {
+      score: state.score,
+      chainLength: state.chain.length,
+      languageId: state.languageId,
+    })
   }, [status])
 
   // Load wordlist then start game

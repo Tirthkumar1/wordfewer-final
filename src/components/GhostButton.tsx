@@ -12,13 +12,15 @@ interface Props {
   label: string
   onPress: () => void
   style?: StyleProp<ViewStyle>
+  disabled?: boolean
 }
 
-export default function GhostButton({ label, onPress, style }: Props) {
+export default function GhostButton({ label, onPress, style, disabled }: Props) {
   return (
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => [styles.button, pressed && styles.pressed, style]}
+      disabled={disabled}
+      style={({ pressed }) => [styles.button, pressed && styles.pressed, disabled && styles.disabled, style]}
     >
       <Text style={styles.label}>{label}</Text>
     </Pressable>
@@ -35,9 +37,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 24,
   },
-  pressed: {
-    opacity: 0.7,
-  },
+  pressed: { opacity: 0.7 },
+  disabled: { opacity: 0.4 },
   label: {
     fontFamily: Fonts.bodyMedium,
     fontSize: 16,

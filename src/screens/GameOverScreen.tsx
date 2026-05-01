@@ -1,8 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useNavigation } from '@react-navigation/native'
 import type { StackNavigationProp } from '@react-navigation/stack'
-import React, { useEffect, useRef } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import {
+  ActivityIndicator,
   Share,
   StatusBar,
   StyleSheet,
@@ -17,7 +18,7 @@ import NeuralBackground from '../components/NeuralBackground'
 import type { RootStackParamList } from '../navigation/AppNavigator'
 import { submitScore } from '../db/dbService'
 import { getStoredUser } from '../services/AuthService'
-import { showInterstitial } from '../services/AdService'
+import { showInterstitial, showRewarded } from '../services/AdService'
 import { scheduleStreakReminder } from '../services/NotificationService'
 import { useGame } from '../store/gameStore'
 import { Colors, Fonts, getNativeFont } from '../theme'
@@ -52,7 +53,8 @@ export default function GameOverScreen() {
   const shotRef = useRef<ViewShot>(null)
   const insets = useSafeAreaInsets()
 
-  const { chain, score, languageId, sessionStartTime, personalBest } = state
+  const [adLoading, setAdLoading] = useState(false)
+  const { chain, score, languageId, timerMode, sessionStartTime, personalBest } = state
   const chainLength = chain.length
   const timeSurvived = Math.floor((Date.now() - sessionStartTime) / 1000)
   const isPersonalBest = score > personalBest.score || chainLength > personalBest.chain
@@ -84,7 +86,6 @@ export default function GameOverScreen() {
       submitScore(userId, username, languageId, state.timerMode, chainLength, score)
 
       track('game_over', { language: languageId, chain_length: chainLength, score, time_survived: timeSurvived, is_personal_best: isPersonalBest })
-      showInterstitial()
       scheduleStreakReminder()
     }
     onMount()
@@ -98,12 +99,28 @@ export default function GameOverScreen() {
     } catch {}
   }
 
-  function handlePlayAgain() {
+  async function handleContinueWithAd() {
+    setAdLoading(true)
+    const earned = await showRewarded()
+    setAdLoading(false)
+    if (earned) {
+      dispatch({ type: 'CONTINUE_GAME' })
+      navigation.replace('Game', {})
+    }
+  }
+
+  async function handlePlayAgain() {
+    setAdLoading(true)
+    await showInterstitial()
+    setAdLoading(false)
     dispatch({ type: 'RESET' })
     navigation.replace('Game', {})
   }
 
-  function handleHome() {
+  async function handleHome() {
+    setAdLoading(true)
+    await showInterstitial()
+    setAdLoading(false)
     dispatch({ type: 'RESET' })
     navigation.navigate('Tabs')
   }
@@ -158,8 +175,29 @@ export default function GameOverScreen() {
 
         {/* Actions */}
         <GradientButton label="Share Score ↗" onPress={handleShare} style={styles.btn} />
-        <GradientButton label="Play Again" onPress={handlePlayAgain} style={styles.btn} />
-        <GhostButton label="Back to Home" onPress={handleHome} style={styles.btn} />
+        <GradientButton
+          label={`▶ Watch Ad → Continue (${timerMode}s)`}
+          onPress={handleContinueWithAd}
+          style={styles.btn}
+          disabled={adLoading}
+        />
+        <GhostButton
+          label="Play Again"
+          onPress={handlePlayAgain}
+          style={styles.btn}
+          disabled={adLoading}
+        />
+        <GhostButton
+          label="Back to Home"
+          onPress={handleHome}
+          style={styles.btn}
+          disabled={adLoading}
+        />
+        {adLoading && (
+          <View style={styles.loadingOverlay}>
+            <ActivityIndicator size="large" color={Colors.primary} />
+          </View>
+        )}
       </View>
     </View>
   )
@@ -259,4 +297,12 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   btn: {},
+  loadingOverlay: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(19,18,27,0.7)',
+    borderRadius: 20,
+  },
 })

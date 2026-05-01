@@ -42,6 +42,7 @@ type Action =
   | { type: 'PAUSE' }
   | { type: 'RESUME' }
   | { type: 'FREEZE_TIMER'; payload: number }
+  | { type: 'CONTINUE_GAME' }
   | { type: 'RESET' }
 
 // ─── Initial state ────────────────────────────────────────────────────────────
@@ -178,6 +179,16 @@ function reducer(state: GameState, action: Action): GameState {
 
     case 'FREEZE_TIMER':
       return { ...state, timeRemaining: state.timeRemaining + action.payload }
+
+    case 'CONTINUE_GAME':
+      return {
+        ...state,
+        status: 'playing',
+        timeRemaining: state.timerMode,
+        baseTime: state.timerMode,
+        invalidAttempt: false,
+        lastBonus: null,
+      }
 
     case 'RESET':
       return { ...INITIAL_STATE, personalBest: state.personalBest, timerMode: state.timerMode, wordlist: state.wordlist, languageId: state.languageId, script: state.script, chainRule: state.chainRule }

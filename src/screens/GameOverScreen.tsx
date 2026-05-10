@@ -35,16 +35,10 @@ const track = (..._args: unknown[]) => {}
 type Nav = StackNavigationProp<RootStackParamList>
 
 const LANG_META: Record<string, { flag: string; native: string; script: string }> = {
-  en: { flag: '🇬🇧', native: 'English',    script: 'latin' },
-  de: { flag: '🇩🇪', native: 'Deutsch',    script: 'latin' },
-  gu: { flag: '🇮🇳', native: 'ગુજરાતી',   script: 'gujarati' },
-  hi: { flag: '🇮🇳', native: 'हिंदी',      script: 'devanagari' },
-  fr: { flag: '🇫🇷', native: 'Français',   script: 'latin' },
-  es: { flag: '🇪🇸', native: 'Español',    script: 'latin' },
-  it: { flag: '🇮🇹', native: 'Italiano',   script: 'latin' },
-  pl: { flag: '🇵🇱', native: 'Polski',     script: 'latin' },
-  ro: { flag: '🇷🇴', native: 'Română',     script: 'latin' },
-  nl: { flag: '🇳🇱', native: 'Nederlands', script: 'latin' },
+  en: { flag: '🇬🇧', native: 'English',  script: 'latin' },
+  de: { flag: '🇩🇪', native: 'Deutsch',  script: 'latin' },
+  gu: { flag: '🇮🇳', native: 'ગુજરાતી', script: 'gujarati' },
+  hi: { flag: '🇮🇳', native: 'हिंदी',    script: 'devanagari' },
 }
 
 function formatTime(s: number): string {

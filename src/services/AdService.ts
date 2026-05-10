@@ -8,7 +8,6 @@ import {
 } from 'react-native-google-mobile-ads'
 import { Platform } from 'react-native'
 import { captureError } from '../utils/errorHandler'
-import { isAdFree } from './PurchaseService'
 
 const INTERSTITIAL_COUNT_KEY = 'wordfever_interstitial_count'
 const SHOW_EVERY_N = 4
@@ -23,8 +22,8 @@ const AD_IDS = {
   rewarded: __DEV__
     ? TestIds.REWARDED
     : Platform.select({
-        android: 'ca-app-pub-XXXXXXXXXXXXXXXX/XXXXXXXXXX', // replace: AdMob rewarded unit ID
-        ios: 'ca-app-pub-XXXXXXXXXXXXXXXX/XXXXXXXXXX',
+        android: 'ca-app-pub-6945189356120937/XXXXXXXXXX', // TODO: replace with real rewarded ad unit ID from AdMob
+        ios: 'ca-app-pub-6945189356120937/XXXXXXXXXX',
       })!,
 }
 
@@ -34,7 +33,6 @@ export function initAds(): void {
 
 export async function showInterstitial(): Promise<void> {
   try {
-    if (await isAdFree()) return
 
     const raw = await AsyncStorage.getItem(INTERSTITIAL_COUNT_KEY)
     const count = parseInt(raw ?? '0', 10) + 1
@@ -60,7 +58,6 @@ export async function showInterstitial(): Promise<void> {
 
 export async function showRewarded(): Promise<boolean> {
   try {
-    if (await isAdFree()) return true
 
     return await new Promise<boolean>((resolve) => {
       const ad = RewardedAd.createForAdRequest(AD_IDS.rewarded, {

@@ -12,7 +12,7 @@ export default ({ config }) => ({
   },
   ios: {
     supportsTablet: false,
-    bundleIdentifier: 'com.yourname.wordfever',
+    bundleIdentifier: 'com.wordfever',
   },
   android: {
     package: 'com.wordfever',

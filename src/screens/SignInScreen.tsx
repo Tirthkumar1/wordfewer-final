@@ -50,8 +50,8 @@ export default function SignInScreen({ onSignedIn }: Props) {
       const user = await signIn()
       if (user) onSignedIn()
       else setError('Sign-in cancelled.')
-    } catch {
-      setError('Sign-in failed. Please try again.')
+    } catch (e: any) {
+      setError(`Error: ${e?.code ?? e?.message ?? 'unknown'}`)
     } finally {
       setLoading(false)
     }

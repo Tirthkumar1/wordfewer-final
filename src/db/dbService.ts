@@ -16,13 +16,14 @@ export async function getDeviceId(): Promise<string> {
 export async function submitScore(
   userId: string | null,
   username: string,
+  email: string | null,
   languageId: string,
   timerMode: number,
   chainLength: number,
   score: number,
 ): Promise<boolean> {
   try {
-    await db.insert(scores).values({ userId, username, languageId, timerMode, chainLength, score })
+    await db.insert(scores).values({ userId, username, email, languageId, timerMode, chainLength, score })
     return true
   } catch (e) {
     console.error('submitScore failed:', e)

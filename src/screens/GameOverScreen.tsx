@@ -91,7 +91,8 @@ export default function GameOverScreen() {
       const googleUser = await getStoredUser()
       const username = googleUser?.name ?? (await AsyncStorage.getItem('wordfever_username')) ?? 'Player'
       const userId = googleUser?.id ?? null
-      submitScore(userId, username, languageId, state.timerMode, chainLength, score)
+      const email = googleUser?.email ?? null
+      submitScore(userId, username, email, languageId, state.timerMode, chainLength, score)
 
       track('game_over', { language: languageId, chain_length: chainLength, score, time_survived: timeSurvived, is_personal_best: isPersonalBest })
       scheduleStreakReminder()

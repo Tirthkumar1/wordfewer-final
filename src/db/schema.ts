@@ -5,6 +5,7 @@ export const scores = pgTable('scores', {
   id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
   userId: text('user_id'),
   username: text('username').notNull(),
+  email: text('email'),
   languageId: text('language_id').notNull(),
   timerMode: integer('timer_mode').notNull().default(10),
   chainLength: integer('chain_length').notNull(),

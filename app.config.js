@@ -15,7 +15,7 @@ export default ({ config }) => ({
     bundleIdentifier: 'com.yourname.wordfever',
   },
   android: {
-    package: 'com.yourname.wordfever',
+    package: 'com.wordfever',
     versionCode: 1,
     googleServicesFile: './android/app/google-services.json',
     adaptiveIcon: {

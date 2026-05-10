@@ -37,5 +37,8 @@ export default ({ config }) => ({
   ],
   extra: {
     DATABASE_URL: process.env.DATABASE_URL,
+    eas: {
+      projectId: '583fb775-3325-4dd9-a24b-975254216ca6',
+    },
   },
 })

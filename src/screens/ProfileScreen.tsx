@@ -19,6 +19,7 @@ import GhostButton from '../components/GhostButton'
 import GradientButton from '../components/GradientButton'
 import { StorageKeys } from '../config/storageKeys'
 import { getStoredUser, signOut, type GoogleUser } from '../services/AuthService'
+import { useAuth } from '../services/AuthContext'
 import { useGame } from '../store/gameStore'
 import { Colors, Fonts } from '../theme'
 
@@ -75,6 +76,7 @@ function AchievementBadge({ achievement }: { achievement: Achievement }) {
 
 export default function ProfileScreen() {
   const { state } = useGame()
+  const { onSignOut } = useAuth()
   const [stats, setStats] = useState<Stats>({
     bestChain: 0, bestScore: 0, totalWords: 0, streak: 0, joinDate: '',
   })
@@ -127,9 +129,7 @@ export default function ProfileScreen() {
         style: 'destructive',
         onPress: async () => {
           await signOut()
-          // App.tsx will detect no stored user and show SignInScreen on next launch.
-          // For immediate effect, just clear local state.
-          Alert.alert('Signed out', 'Restart the app to sign in again.')
+          onSignOut()
         },
       },
     ])

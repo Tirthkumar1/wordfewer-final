@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useFonts } from 'expo-font'
 import * as SplashScreen from 'expo-splash-screen'
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { View } from 'react-native'
 import { AppNavigator } from './src/navigation/AppNavigator'
 import { StorageKeys } from './src/config/storageKeys'
@@ -13,6 +13,7 @@ import {
   signInSilently,
   type GoogleUser,
 } from './src/services/AuthService'
+import { AuthProvider } from './src/services/AuthContext'
 import { registerForPushNotifications } from './src/services/NotificationService'
 
 // Replace with your actual Web Client ID from Google Cloud Console
@@ -34,6 +35,7 @@ export default function App() {
 
   const [authChecked, setAuthChecked] = useState(false)
   const [user, setUser] = useState<GoogleUser | null>(null)
+  const signedOutRef = useRef(false)
 
   useEffect(() => {
     if (fontsLoaded || fontError) SplashScreen.hideAsync()
@@ -46,19 +48,20 @@ export default function App() {
   }, [fontsLoaded, fontError])
 
   async function checkAuth() {
-    // Ensure join date is set
     const joinDate = await AsyncStorage.getItem(StorageKeys.JOIN_DATE)
     if (!joinDate) {
       await AsyncStorage.setItem(StorageKeys.JOIN_DATE, new Date().toISOString())
     }
 
-    // Try silent sign-in first, fall back to stored user
-    const silentUser = await signInSilently()
-    if (silentUser) {
-      setUser(silentUser)
-      setAuthChecked(true)
-      registerForPushNotifications()
-      return
+    // Skip silent sign-in if the user explicitly signed out this session
+    if (!signedOutRef.current) {
+      const silentUser = await signInSilently()
+      if (silentUser) {
+        setUser(silentUser)
+        setAuthChecked(true)
+        registerForPushNotifications()
+        return
+      }
     }
 
     const stored = await getStoredUser()
@@ -67,6 +70,11 @@ export default function App() {
       registerForPushNotifications()
     }
     setAuthChecked(true)
+  }
+
+  function handleSignOut() {
+    signedOutRef.current = true
+    setUser(null)
   }
 
   if (!fontsLoaded && !fontError) {
@@ -87,7 +95,9 @@ export default function App() {
 
   return (
     <GameProvider>
-      <AppNavigator />
+      <AuthProvider onSignOut={handleSignOut}>
+        <AppNavigator />
+      </AuthProvider>
     </GameProvider>
   )
 }

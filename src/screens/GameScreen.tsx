@@ -115,7 +115,7 @@ export default function GameScreen() {
   const freezeShownAt = useRef<number>(-1)
 
   const insets = useSafeAreaInsets()
-  const { status, timeRemaining, baseTime, chain, score, currentWord, requiredUnit, script, languageId } = state
+  const { status, timeRemaining, baseTime, chain, score, currentWord, requiredUnit, script, languageId, timerMode } = state
   const isIndic = script === 'gujarati' || script === 'devanagari'
 
   // Block Android hardware back button during game
@@ -193,11 +193,10 @@ export default function GameScreen() {
     }
   }, [timeRemaining, status])
 
-  // Shake + freeze prompt at 3s
+  // Shake + freeze prompt at 2s
   useEffect(() => {
-    if (status === 'playing' && timeRemaining === 3 && freezeShownAt.current !== chain.length) {
+    if (status === 'playing' && timeRemaining === 2 && freezeShownAt.current !== chain.length) {
       freezeShownAt.current = chain.length
-      // Shake
       Animated.sequence([
         Animated.timing(shakeAnim, { toValue: 4, duration: 80, useNativeDriver: true }),
         Animated.timing(shakeAnim, { toValue: -4, duration: 80, useNativeDriver: true }),
@@ -207,6 +206,7 @@ export default function GameScreen() {
       ]).start()
       setShowFreeze(true)
     }
+    if (status === 'gameover') setShowFreeze(false)
   }, [timeRemaining, status])
 
   // Timer bar width animation — reset on new word, stop when not playing
@@ -350,11 +350,11 @@ export default function GameScreen() {
     const usedToken = await useFreezeToken()
     if (usedToken) {
       setFreezeTokens(t => Math.max(0, t - 1))
-      dispatch({ type: 'FREEZE_TIMER', payload: 5 })
+      dispatch({ type: 'FREEZE_TIMER', payload: timerMode })
       return
     }
     const rewarded = await showRewarded()
-    if (rewarded) dispatch({ type: 'FREEZE_TIMER', payload: 5 })
+    if (rewarded) dispatch({ type: 'FREEZE_TIMER', payload: timerMode })
   }
 
   const trailWords = chain.slice(-5)
@@ -514,12 +514,12 @@ export default function GameScreen() {
             <Text style={styles.freezeTitle}>⏳ Running out of time!</Text>
             <Text style={styles.freezeSub}>
               {freezeTokens > 0
-                ? `❄️ Use a Freeze Token (+5s) — ${freezeTokens} left`
-                : '❄️ Watch a short ad to freeze +5 seconds'}
+                ? `❄️ Use a Freeze Token (+${timerMode}s) — ${freezeTokens} left`
+                : `❄️ Watch a short ad to get +${timerMode}s`}
             </Text>
             <View style={styles.freezeButtons}>
               <GradientButton
-                label={freezeTokens > 0 ? `❄️ Use Token (+5s)` : 'Watch Ad → +5s'}
+                label={freezeTokens > 0 ? `❄️ Use Token (+${timerMode}s)` : `Watch Ad → +${timerMode}s`}
                 onPress={handleFreezeAccept}
                 style={{ flex: 1 }}
               />

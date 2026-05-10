@@ -136,7 +136,7 @@ export default function HomeScreen() {
           onPress={() => navigation.navigate('Game', {})}
         />
         <GhostButton
-          label="Daily Challenge"
+          label="Daily Goals"
           onPress={() => navigation.navigate('DailyChallenge', {})}
         />
 

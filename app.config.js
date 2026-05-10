@@ -17,12 +17,13 @@ export default ({ config }) => ({
   android: {
     package: 'com.yourname.wordfever',
     versionCode: 1,
+    googleServicesFile: './android/app/google-services.json',
     adaptiveIcon: {
       foregroundImage: './assets/adaptive-icon.png',
       backgroundColor: '#13121b',
     },
   },
-  plugins: ['expo-font', 'expo-localization'],
+  plugins: ['expo-font', 'expo-localization', '@react-native-google-signin/google-signin'],
   extra: {
     DATABASE_URL: process.env.DATABASE_URL,
   },

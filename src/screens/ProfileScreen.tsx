@@ -157,7 +157,7 @@ export default function ProfileScreen() {
   async function handleShareProfile() {
     try {
       await Share.share({
-        message: `I'm ${username} on WordFever! Best chain: ${stats.bestChain} words, best score: ${stats.bestScore} pts. Can you beat me?`,
+        message: `I'm ${username} on WordFever! Best chain: ${stats.bestChain} words, best score: ${stats.bestScore} pts. Can you beat me?\nDownload the app: https://play.google.com/store/apps/details?id=com.wordfever`,
       })
     } catch {}
   }

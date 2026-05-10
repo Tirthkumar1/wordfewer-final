@@ -111,7 +111,7 @@ export default function GameOverScreen() {
     try {
       const uri = await shotRef.current?.capture?.()
       if (!uri) return
-      await Share.share({ url: uri, message: `I chained ${chainLength} words and scored ${score} pts in WordFever! 🔥` })
+      await Share.share({ url: uri, message: `I chained ${chainLength} words and scored ${score} pts in WordFever! 🔥\nDownload the app: https://play.google.com/store/apps/details?id=com.wordfever` })
     } catch {}
   }
 

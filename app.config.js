@@ -17,7 +17,7 @@ export default ({ config }) => ({
   android: {
     package: 'com.wordfever',
     versionCode: 1,
-    googleServicesFile: './android/app/google-services.json',
+    googleServicesFile: './google-services.json',
     adaptiveIcon: {
       foregroundImage: './assets/adaptive-icon.png',
       backgroundColor: '#13121b',

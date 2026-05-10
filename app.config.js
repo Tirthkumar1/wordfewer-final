@@ -23,7 +23,18 @@ export default ({ config }) => ({
       backgroundColor: '#13121b',
     },
   },
-  plugins: ['expo-font', 'expo-localization', '@react-native-google-signin/google-signin'],
+  plugins: [
+    'expo-font',
+    'expo-localization',
+    '@react-native-google-signin/google-signin',
+    [
+      'react-native-google-mobile-ads',
+      {
+        androidAppId: 'ca-app-pub-6945189356120937~6355323266',
+        iosAppId: 'ca-app-pub-6945189356120937~6355323266',
+      },
+    ],
+  ],
   extra: {
     DATABASE_URL: process.env.DATABASE_URL,
   },

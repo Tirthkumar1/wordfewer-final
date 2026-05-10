@@ -22,8 +22,8 @@ const AD_IDS = {
   rewarded: __DEV__
     ? TestIds.REWARDED
     : Platform.select({
-        android: 'ca-app-pub-6945189356120937/XXXXXXXXXX', // TODO: replace with real rewarded ad unit ID from AdMob
-        ios: 'ca-app-pub-6945189356120937/XXXXXXXXXX',
+        android: 'ca-app-pub-6945189356120937/9790290333',
+        ios: 'ca-app-pub-6945189356120937/9790290333',
       })!,
 }
 

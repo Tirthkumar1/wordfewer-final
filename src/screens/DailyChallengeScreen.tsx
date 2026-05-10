@@ -1,289 +1,234 @@
-import { useNavigation } from '@react-navigation/native'
-import type { StackNavigationProp } from '@react-navigation/stack'
-import React, { useEffect, useState } from 'react'
+import { useFocusEffect } from '@react-navigation/native'
+import React, { useCallback, useState } from 'react'
 import {
-  ActivityIndicator,
-  Pressable,
+  ScrollView,
   StatusBar,
   StyleSheet,
   Text,
   View,
 } from 'react-native'
-import Svg, { Path } from 'react-native-svg'
-import GhostButton from '../components/GhostButton'
-import GradientButton from '../components/GradientButton'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import NeuralBackground from '../components/NeuralBackground'
-import type { RootStackParamList } from '../navigation/AppNavigator'
 import {
-  getDailyChallenge,
-  getLeaderboard,
-  getTodayDailyResult,
-  type LeaderboardEntry,
-} from '../db/dbService'
-import { useGame, TIMER_OPTIONS } from '../store/gameStore'
+  getDailyGoal,
+  getRewardState,
+  isDailyGoalCompleted,
+  MILESTONES,
+  type RewardState,
+} from '../services/RewardService'
 import { Colors, Fonts } from '../theme'
 
-type Nav = StackNavigationProp<RootStackParamList>
-
-const DIFFICULTY_COLOR: Record<string, string> = {
-  easy: Colors.tertiary,
-  medium: Colors.amber,
-  hard: Colors.secondary,
+const FLAME: Record<string, string> = {
+  orange: '🔥',
+  blue:   '💙🔥',
+  purple: '💜🔥',
+  gold:   '⭐🔥',
 }
 
-const MEDAL = ['🥇', '🥈', '🥉']
-
-function CountdownTimer() {
-  const [secs, setSecs] = useState(() => {
-    const now = new Date()
-    const midnight = new Date()
-    midnight.setHours(24, 0, 0, 0)
-    return Math.floor((midnight.getTime() - now.getTime()) / 1000)
-  })
-
-  useEffect(() => {
-    const id = setInterval(() => setSecs((s) => Math.max(0, s - 1)), 1000)
-    return () => clearInterval(id)
-  }, [])
-
-  const h = Math.floor(secs / 3600)
-  const m = Math.floor((secs % 3600) / 60)
-  const s = secs % 60
-  const pad = (n: number) => String(n).padStart(2, '0')
-
+function ProgressBar({ value, max, color }: { value: number; max: number; color: string }) {
+  const pct = Math.min(value / max, 1)
   return (
-    <Text style={styles.countdown}>{pad(h)}:{pad(m)}:{pad(s)}</Text>
+    <View style={styles.progressTrack}>
+      <View style={[styles.progressFill, { width: `${Math.round(pct * 100)}%` as any, backgroundColor: color }]} />
+    </View>
   )
 }
 
 export default function DailyChallengeScreen() {
-  const navigation = useNavigation<Nav>()
-  const { state } = useGame()
+  const insets = useSafeAreaInsets()
+  const [rewards, setRewards] = useState<RewardState | null>(null)
+  const [goalDone, setGoalDone] = useState(false)
 
-  const [challenge, setChallenge] = useState<{ startingWord: string; difficulty: string } | null>(null)
-  const [todayResult, setTodayResult] = useState<{ chainLength: number | null; score: number | null } | null>(null)
-  const [topScores, setTopScores] = useState<LeaderboardEntry[]>([])
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    load()
-  }, [state.languageId])
+  useFocusEffect(useCallback(() => { load() }, []))
 
   async function load() {
-    setLoading(true)
-    const [ch, result, scores] = await Promise.all([
-      getDailyChallenge(state.languageId),
-      getTodayDailyResult(state.languageId),
-      getLeaderboard(state.languageId, 'today', state.timerMode, 3),
-    ])
-    setChallenge(ch ? { startingWord: ch.startingWord, difficulty: ch.difficulty ?? 'medium' } : null)
-    setTodayResult(result ? { chainLength: result.chainLength, score: result.score } : null)
-    setTopScores(scores)
-    setLoading(false)
+    const [r, done] = await Promise.all([getRewardState(), isDailyGoalCompleted()])
+    setRewards(r)
+    setGoalDone(done)
   }
 
-  const today = new Date().toLocaleDateString('en-GB', {
-    weekday: 'long', day: 'numeric', month: 'long',
-  })
-
-  const alreadyPlayed = todayResult !== null
+  const goal = getDailyGoal()
+  const streak = rewards?.streak ?? 0
+  const nextMilestone = MILESTONES.find(m => streak < m.days)
+  const daysToNext = nextMilestone ? nextMilestone.days - streak : 0
+  const today = new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })
 
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, { paddingTop: insets.top }]}>
       <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
       <NeuralBackground />
 
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.wordmark}>WordFever</Text>
-        <Text style={styles.dateLabel}>{today}</Text>
-      </View>
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
 
-      {/* Countdown */}
-      <View style={styles.countdownRow}>
-        <Text style={styles.countdownLabel}>Next challenge in</Text>
-        <CountdownTimer />
-      </View>
-
-      {loading ? (
-        <ActivityIndicator color={Colors.primary} style={{ marginTop: 40 }} />
-      ) : !challenge ? (
-        <View style={styles.empty}>
-          <Text style={styles.emptyText}>No challenge today</Text>
-          <Text style={styles.emptySubtext}>Check back soon!</Text>
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={styles.title}>Daily Goal</Text>
+          <Text style={styles.date}>{today}</Text>
         </View>
-      ) : (
-        <View style={styles.body}>
-          {/* Challenge card */}
-          <View style={styles.challengeCard}>
-            {/* Glow behind word */}
-            <View style={styles.wordGlow} />
-            <View style={styles.wordCircle}>
-              <Text style={styles.startingWord}>{challenge.startingWord}</Text>
+
+        {/* Streak card */}
+        <View style={styles.card}>
+          <View style={styles.streakRow}>
+            <Text style={styles.flameEmoji}>{FLAME[rewards?.flameColor ?? 'orange']}</Text>
+            <View>
+              <Text style={styles.streakNum}>{streak}</Text>
+              <Text style={styles.streakLabel}>DAY STREAK</Text>
             </View>
-            <View style={styles.difficultyRow}>
-              <View style={[styles.difficultyBadge, { backgroundColor: DIFFICULTY_COLOR[challenge.difficulty] + '33' }]}>
-                <Text style={[styles.difficultyText, { color: DIFFICULTY_COLOR[challenge.difficulty] }]}>
-                  {challenge.difficulty.toUpperCase()}
-                </Text>
+            {rewards?.title ? (
+              <View style={styles.titleBadge}>
+                <Text style={styles.titleBadgeText}>{rewards.title}</Text>
               </View>
-              <Text style={styles.startingLabel}>Starting Word</Text>
-            </View>
+            ) : null}
           </View>
 
-          {/* Mini leaderboard */}
-          {topScores.length > 0 && (
-            <View style={styles.miniLeaderboard}>
-              <Text style={styles.miniLeaderboardLabel}>TODAY'S TOP PLAYERS</Text>
-              {topScores.map((entry, i) => (
-                <View key={i} style={styles.miniRow}>
-                  <Text style={styles.miniMedal}>{MEDAL[i]}</Text>
-                  <Text style={styles.miniName}>{entry.username}</Text>
-                  <Text style={styles.miniScore}>{entry.score} pts</Text>
-                </View>
-              ))}
-            </View>
-          )}
-
-          {/* Already played result */}
-          {alreadyPlayed && todayResult && (
-            <View style={styles.resultCard}>
-              <Text style={styles.resultLabel}>YOUR RESULT TODAY</Text>
-              <View style={styles.resultRow}>
-                <View style={styles.resultStat}>
-                  <Text style={styles.resultValue}>{todayResult.chainLength ?? 0}</Text>
-                  <Text style={styles.resultKey}>WORDS</Text>
-                </View>
-                <View style={styles.resultDivider} />
-                <View style={styles.resultStat}>
-                  <Text style={styles.resultValue}>{todayResult.score ?? 0}</Text>
-                  <Text style={styles.resultKey}>PTS</Text>
-                </View>
+          {nextMilestone ? (
+            <View style={styles.nextMilestone}>
+              <View style={styles.nextMilestoneRow}>
+                <Text style={styles.nextMilestoneLabel}>Next: {nextMilestone.label}</Text>
+                <Text style={styles.nextMilestoneDays}>{daysToNext} day{daysToNext !== 1 ? 's' : ''} away</Text>
               </View>
+              <ProgressBar value={streak} max={nextMilestone.days} color={Colors.primaryContainer} />
+              <Text style={styles.nextMilestoneReward}>🎁 {nextMilestone.reward}</Text>
             </View>
-          )}
-
-          {/* CTA */}
-          {!alreadyPlayed ? (
-            <GradientButton
-              label="Start Today's Challenge"
-              onPress={() =>
-                navigation.navigate('Game', {
-                  isDailyChallenge: true,
-                  startingWord: challenge.startingWord,
-                })
-              }
-              style={styles.cta}
-            />
           ) : (
-            <GhostButton
-              label="See Leaderboard"
-              onPress={() => navigation.navigate('Tabs')}
-              style={styles.cta}
-            />
+            <Text style={styles.allMilestonesText}>🏆 All milestones unlocked!</Text>
           )}
         </View>
-      )}
+
+        {/* Today's goal */}
+        <View style={[styles.card, goalDone && styles.cardDone]}>
+          <View style={styles.goalHeader}>
+            <Text style={styles.goalTitle}>TODAY'S GOAL</Text>
+            {goalDone ? <Text style={styles.doneCheck}>✓ Complete</Text> : null}
+          </View>
+          <Text style={styles.goalDescription}>{goal.label}</Text>
+          {goalDone ? (
+            <View style={styles.rewardRow}>
+              <Text style={styles.rewardText}>🪙 +1 Continue Token earned!</Text>
+            </View>
+          ) : (
+            <Text style={styles.goalHint}>Play any game to complete this goal</Text>
+          )}
+        </View>
+
+        {/* Tokens & rewards */}
+        <View style={styles.card}>
+          <Text style={styles.sectionLabel}>YOUR REWARDS</Text>
+          <View style={styles.tokenGrid}>
+            <View style={styles.tokenBox}>
+              <Text style={styles.tokenIcon}>🪙</Text>
+              <Text style={styles.tokenNum}>{rewards?.continueTokens ?? 0}</Text>
+              <Text style={styles.tokenLabel}>Continue{'\n'}Tokens</Text>
+            </View>
+            <View style={styles.tokenBox}>
+              <Text style={styles.tokenIcon}>❄️</Text>
+              <Text style={styles.tokenNum}>{rewards?.freezeTokens ?? 0}</Text>
+              <Text style={styles.tokenLabel}>Freeze{'\n'}Tokens</Text>
+            </View>
+            <View style={styles.tokenBox}>
+              <Text style={styles.tokenIcon}>⏱️</Text>
+              <Text style={styles.tokenNum}>+{rewards?.bonusStartSecs ?? 0}s</Text>
+              <Text style={styles.tokenLabel}>Bonus{'\n'}Start</Text>
+            </View>
+            <View style={styles.tokenBox}>
+              <Text style={styles.tokenIcon}>⚡</Text>
+              <Text style={styles.tokenNum}>
+                {rewards?.scoreMultiplier ? `${rewards.scoreMultiplier.multiplier}×` : '1×'}
+              </Text>
+              <Text style={styles.tokenLabel}>Score{'\n'}Mult</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Milestones */}
+        <View style={styles.card}>
+          <Text style={styles.sectionLabel}>STREAK MILESTONES</Text>
+          {MILESTONES.map((m) => {
+            const claimed = rewards?.claimedMilestones.includes(m.id) ?? false
+            const reached = streak >= m.days
+            return (
+              <View key={m.id} style={[styles.milestoneRow, claimed && styles.milestoneClaimed]}>
+                <View style={[styles.milestoneDot, reached && styles.milestoneDotActive]} />
+                <View style={styles.milestoneInfo}>
+                  <Text style={[styles.milestoneName, claimed && styles.milestoneNameDone]}>
+                    {m.days}-day — {m.label}
+                  </Text>
+                  <Text style={styles.milestoneReward}>🎁 {m.reward}</Text>
+                </View>
+                {claimed ? <Text style={styles.claimedBadge}>✓</Text> : null}
+              </View>
+            )
+          })}
+        </View>
+
+        <View style={{ height: 100 }} />
+      </ScrollView>
     </View>
   )
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.background },
+  scroll: { paddingHorizontal: 20, paddingTop: 16 },
 
-  header: {
-    paddingTop: 56,
-    paddingHorizontal: 20,
-    paddingBottom: 12,
-    backgroundColor: 'rgba(19,18,27,0.9)',
-    alignItems: 'center',
-    gap: 4,
-  },
-  wordmark: { fontFamily: Fonts.headlineEB, fontSize: 20, color: '#6C47FF' },
-  dateLabel: { fontFamily: Fonts.body, fontSize: 13, color: Colors.onSurfaceVariant },
+  header: { marginBottom: 20 },
+  title: { fontFamily: Fonts.headlineEB, fontSize: 32, color: Colors.onSurface },
+  date: { fontFamily: Fonts.body, fontSize: 14, color: Colors.onSurfaceVariant, marginTop: 2 },
 
-  countdownRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    paddingVertical: 12,
-    backgroundColor: Colors.surfaceLowest,
-  },
-  countdownLabel: { fontFamily: Fonts.body, fontSize: 12, color: Colors.onSurfaceVariant },
-  countdown: { fontFamily: Fonts.game, fontSize: 18, color: Colors.primary },
-
-  body: { flex: 1, paddingHorizontal: 20, paddingTop: 24, gap: 16 },
-
-  challengeCard: {
-    backgroundColor: Colors.surface,
+  card: {
+    backgroundColor: Colors.surfaceLow,
     borderRadius: 20,
-    padding: 32,
-    alignItems: 'center',
-    gap: 16,
-    overflow: 'hidden',
-  },
-  wordGlow: {
-    position: 'absolute',
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-    backgroundColor: 'rgba(108,71,255,0.15)',
-  },
-  wordCircle: {
-    width: 160,
-    height: 160,
-    borderRadius: 80,
-    borderWidth: 3,
-    borderColor: Colors.primaryContainer,
-    backgroundColor: Colors.surfaceLowest,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  startingWord: { fontFamily: Fonts.game, fontSize: 32, color: Colors.primary, textAlign: 'center' },
-  difficultyRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  difficultyBadge: { borderRadius: 999, paddingHorizontal: 12, paddingVertical: 4 },
-  difficultyText: { fontFamily: Fonts.bodyMedium, fontSize: 11, letterSpacing: 1 },
-  startingLabel: { fontFamily: Fonts.body, fontSize: 12, color: Colors.onSurfaceVariant },
-
-  miniLeaderboard: {
-    backgroundColor: Colors.surface,
-    borderRadius: 16,
-    padding: 16,
-    gap: 10,
-  },
-  miniLeaderboardLabel: {
-    fontFamily: Fonts.body, fontSize: 10,
-    color: Colors.onSurfaceVariant, letterSpacing: 1.5,
-    textTransform: 'uppercase', marginBottom: 4,
-  },
-  miniRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
-  },
-  miniMedal: { fontSize: 18, width: 24 },
-  miniName: { fontFamily: Fonts.bodyMedium, fontSize: 14, color: Colors.onSurface, flex: 1 },
-  miniScore: { fontFamily: Fonts.game, fontSize: 14, color: Colors.primary },
-
-  resultCard: {
-    backgroundColor: Colors.surfaceHigh,
-    borderRadius: 16,
     padding: 20,
-    alignItems: 'center',
+    marginBottom: 16,
     gap: 12,
   },
-  resultLabel: {
+  cardDone: { borderWidth: 1, borderColor: 'rgba(58,223,171,0.3)' },
+
+  streakRow: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+  flameEmoji: { fontSize: 40 },
+  streakNum: { fontFamily: Fonts.gameEB, fontSize: 44, color: Colors.primary, lineHeight: 48 },
+  streakLabel: { fontFamily: Fonts.body, fontSize: 10, color: Colors.onSurfaceVariant, letterSpacing: 1.5 },
+  titleBadge: {
+    marginLeft: 'auto' as any,
+    backgroundColor: Colors.primaryContainer,
+    borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4,
+  },
+  titleBadgeText: { fontFamily: Fonts.bodyMedium, fontSize: 12, color: '#fff' },
+  allMilestonesText: { fontFamily: Fonts.bodyMedium, fontSize: 14, color: Colors.tertiary },
+
+  nextMilestone: { gap: 8 },
+  nextMilestoneRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  nextMilestoneLabel: { fontFamily: Fonts.bodyMedium, fontSize: 13, color: Colors.onSurface },
+  nextMilestoneDays: { fontFamily: Fonts.body, fontSize: 12, color: Colors.onSurfaceVariant },
+  progressTrack: { height: 8, backgroundColor: Colors.surfaceHighest, borderRadius: 999, overflow: 'hidden' },
+  progressFill: { height: '100%', borderRadius: 999 },
+  nextMilestoneReward: { fontFamily: Fonts.body, fontSize: 12, color: Colors.onSurfaceVariant },
+
+  goalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  goalTitle: { fontFamily: Fonts.body, fontSize: 10, color: Colors.onSurfaceVariant, letterSpacing: 1.5, textTransform: 'uppercase' },
+  doneCheck: { fontFamily: Fonts.bodyMedium, fontSize: 13, color: Colors.tertiary },
+  goalDescription: { fontFamily: Fonts.headline, fontSize: 22, color: Colors.onSurface },
+  goalHint: { fontFamily: Fonts.body, fontSize: 13, color: Colors.onSurfaceVariant },
+  rewardRow: { backgroundColor: 'rgba(58,223,171,0.1)', borderRadius: 10, paddingVertical: 8, paddingHorizontal: 12 },
+  rewardText: { fontFamily: Fonts.bodyMedium, fontSize: 13, color: Colors.tertiary },
+
+  sectionLabel: {
     fontFamily: Fonts.body, fontSize: 10,
     color: Colors.onSurfaceVariant, letterSpacing: 1.5, textTransform: 'uppercase',
   },
-  resultRow: { flexDirection: 'row', alignItems: 'center', gap: 24 },
-  resultStat: { alignItems: 'center', gap: 4 },
-  resultValue: { fontFamily: Fonts.game, fontSize: 36, color: Colors.primary },
-  resultKey: { fontFamily: Fonts.body, fontSize: 10, color: Colors.onSurfaceVariant, letterSpacing: 1.5 },
-  resultDivider: { width: 1, height: 40, backgroundColor: Colors.outlineVariant },
+  tokenGrid: { flexDirection: 'row', gap: 8 },
+  tokenBox: { flex: 1, backgroundColor: Colors.surfaceHigh, borderRadius: 14, padding: 12, alignItems: 'center', gap: 4 },
+  tokenIcon: { fontSize: 22 },
+  tokenNum: { fontFamily: Fonts.game, fontSize: 18, color: Colors.primary },
+  tokenLabel: { fontFamily: Fonts.body, fontSize: 10, color: Colors.onSurfaceVariant, textAlign: 'center' },
 
-  cta: { marginTop: 4 },
-
-  empty: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8 },
-  emptyText: { fontFamily: Fonts.headline, fontSize: 18, color: Colors.onSurface },
-  emptySubtext: { fontFamily: Fonts.body, fontSize: 14, color: Colors.onSurfaceVariant },
+  milestoneRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 6 },
+  milestoneClaimed: { opacity: 0.6 },
+  milestoneDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: Colors.surfaceHighest },
+  milestoneDotActive: { backgroundColor: Colors.primaryContainer },
+  milestoneInfo: { flex: 1, gap: 2 },
+  milestoneName: { fontFamily: Fonts.bodyMedium, fontSize: 14, color: Colors.onSurface },
+  milestoneNameDone: { color: Colors.onSurfaceVariant },
+  milestoneReward: { fontFamily: Fonts.body, fontSize: 12, color: Colors.onSurfaceVariant },
+  claimedBadge: { fontFamily: Fonts.bodyMedium, fontSize: 14, color: Colors.tertiary },
 })

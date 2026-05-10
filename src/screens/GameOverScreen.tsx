@@ -19,6 +19,12 @@ import type { RootStackParamList } from '../navigation/AppNavigator'
 import { submitScore } from '../db/dbService'
 import { getStoredUser } from '../services/AuthService'
 import { showInterstitial, showRewarded } from '../services/AdService'
+import {
+  checkAndCompleteDailyGoal,
+  useContinueToken,
+  getRewardState,
+  type RewardState,
+} from '../services/RewardService'
 import { scheduleStreakReminder } from '../services/NotificationService'
 import { useGame } from '../store/gameStore'
 import { Colors, Fonts, getNativeFont } from '../theme'
@@ -54,6 +60,8 @@ export default function GameOverScreen() {
   const insets = useSafeAreaInsets()
 
   const [adLoading, setAdLoading] = useState(false)
+  const [rewards, setRewards] = useState<RewardState | null>(null)
+  const [goalJustCompleted, setGoalJustCompleted] = useState(false)
   const { chain, score, languageId, timerMode, sessionStartTime, personalBest } = state
   const chainLength = chain.length
   const timeSurvived = Math.floor((Date.now() - sessionStartTime) / 1000)
@@ -87,6 +95,13 @@ export default function GameOverScreen() {
 
       track('game_over', { language: languageId, chain_length: chainLength, score, time_survived: timeSurvived, is_personal_best: isPersonalBest })
       scheduleStreakReminder()
+
+      const [{ justCompleted }, rewardState] = await Promise.all([
+        checkAndCompleteDailyGoal(chainLength, score),
+        getRewardState(),
+      ])
+      setGoalJustCompleted(justCompleted)
+      setRewards(rewardState)
     }
     onMount()
   }, [])
@@ -101,9 +116,14 @@ export default function GameOverScreen() {
 
   async function handleContinueWithAd() {
     setAdLoading(true)
-    const earned = await showRewarded()
+    // Try token first, fall back to rewarded ad
+    const usedToken = await useContinueToken()
+    let canContinue = usedToken
+    if (!usedToken) {
+      canContinue = await showRewarded()
+    }
     setAdLoading(false)
-    if (earned) {
+    if (canContinue) {
       dispatch({ type: 'CONTINUE_GAME' })
       navigation.replace('Game', {})
     }
@@ -173,10 +193,28 @@ export default function GameOverScreen() {
           </View>
         </ViewShot>
 
+        {/* Daily goal completion banner */}
+        {goalJustCompleted && (
+          <View style={styles.goalBanner}>
+            <Text style={styles.goalBannerText}>🎯 Daily Goal Complete! +1 Continue Token</Text>
+          </View>
+        )}
+
+        {/* Active multiplier badge */}
+        {rewards?.scoreMultiplier && (
+          <View style={styles.multiplierBadge}>
+            <Text style={styles.multiplierText}>⚡ {rewards.scoreMultiplier.multiplier}× Score Active</Text>
+          </View>
+        )}
+
         {/* Actions */}
         <GradientButton label="Share Score ↗" onPress={handleShare} style={styles.btn} />
         <GradientButton
-          label={`▶ Watch Ad → Continue (${timerMode}s)`}
+          label={
+            rewards && rewards.continueTokens > 0
+              ? `🪙 Continue Free (${rewards.continueTokens} token${rewards.continueTokens > 1 ? 's' : ''})`
+              : `▶ Watch Ad → Continue (${timerMode}s)`
+          }
           onPress={handleContinueWithAd}
           style={styles.btn}
           disabled={adLoading}
@@ -297,6 +335,34 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   btn: {},
+  goalBanner: {
+    backgroundColor: 'rgba(58,223,171,0.15)',
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(58,223,171,0.3)',
+  },
+  goalBannerText: {
+    fontFamily: Fonts.bodyMedium,
+    fontSize: 14,
+    color: Colors.tertiary,
+    textAlign: 'center',
+  },
+  multiplierBadge: {
+    backgroundColor: 'rgba(108,71,255,0.15)',
+    borderRadius: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(108,71,255,0.3)',
+  },
+  multiplierText: {
+    fontFamily: Fonts.bodyMedium,
+    fontSize: 13,
+    color: Colors.primary,
+    textAlign: 'center',
+  },
   loadingOverlay: {
     position: 'absolute',
     top: 0, left: 0, right: 0, bottom: 0,

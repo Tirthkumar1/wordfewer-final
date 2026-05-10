@@ -18,6 +18,7 @@ import { getWordlist, getLangConfig } from '../config/wordlists'
 import type { RootStackParamList } from '../navigation/AppNavigator'
 import { useGame } from '../store/gameStore'
 import { ChainValidator } from '../engine/ChainValidator'
+import { getBonusStartSecs, getActiveScoreMultiplier, useFreezeToken, getRewardState } from '../services/RewardService'
 import { Colors, Fonts, getNativeFont } from '../theme'
 
 import { showRewarded } from '../services/AdService'
@@ -95,6 +96,7 @@ export default function GameScreen() {
 
   const [input, setInput] = useState('')
   const [showFreeze, setShowFreeze] = useState(false)
+  const [freezeTokens, setFreezeTokens] = useState(0)
   const [isChecking, setIsChecking] = useState(false)
   const [toast, setToast] = useState<{ message: string; variant: 'success' | 'error' | 'bonus' | 'milestone' } | null>(null)
   const [toastVisible, setToastVisible] = useState(false)
@@ -153,16 +155,29 @@ export default function GameScreen() {
         payload: { languageId: langId, script: cfg.script, chainRule: cfg.chainRule, wordlist: words },
       })
     } else if (status === 'idle') {
-      dispatch({ type: 'START_GAME', payload: isDailyChallenge ? dailyStartingWord : undefined })
+      startGame()
     }
   }, [])
 
   // Start game once wordlist is loaded
   useEffect(() => {
-    if (status === 'idle' && state.wordlist.length > 0) {
-      dispatch({ type: 'START_GAME', payload: isDailyChallenge ? dailyStartingWord : undefined })
-    }
+    if (status === 'idle' && state.wordlist.length > 0) startGame()
   }, [state.wordlist.length, status])
+
+  async function startGame() {
+    const [bonusStartSecs, scoreMultiplier, rewardState] = await Promise.all([
+      getBonusStartSecs(),
+      getActiveScoreMultiplier(),
+      getRewardState(),
+    ])
+    setFreezeTokens(rewardState.freezeTokens)
+    dispatch({
+      type: 'START_GAME',
+      payload: isDailyChallenge ? dailyStartingWord : undefined,
+      bonusStartSecs,
+      scoreMultiplier,
+    })
+  }
 
   // Tick interval
   useEffect(() => {
@@ -332,6 +347,12 @@ export default function GameScreen() {
 
   async function handleFreezeAccept() {
     setShowFreeze(false)
+    const usedToken = await useFreezeToken()
+    if (usedToken) {
+      setFreezeTokens(t => Math.max(0, t - 1))
+      dispatch({ type: 'FREEZE_TIMER', payload: 5 })
+      return
+    }
     const rewarded = await showRewarded()
     if (rewarded) dispatch({ type: 'FREEZE_TIMER', payload: 5 })
   }
@@ -491,9 +512,17 @@ export default function GameScreen() {
         <View style={styles.overlay}>
           <View style={styles.freezeCard}>
             <Text style={styles.freezeTitle}>⏳ Running out of time!</Text>
-            <Text style={styles.freezeSub}>❄️ Watch a short ad to freeze +5 seconds</Text>
+            <Text style={styles.freezeSub}>
+              {freezeTokens > 0
+                ? `❄️ Use a Freeze Token (+5s) — ${freezeTokens} left`
+                : '❄️ Watch a short ad to freeze +5 seconds'}
+            </Text>
             <View style={styles.freezeButtons}>
-              <GradientButton label="Watch Ad → +5s" onPress={handleFreezeAccept} style={{ flex: 1 }} />
+              <GradientButton
+                label={freezeTokens > 0 ? `❄️ Use Token (+5s)` : 'Watch Ad → +5s'}
+                onPress={handleFreezeAccept}
+                style={{ flex: 1 }}
+              />
               <GhostButton label="Dismiss" onPress={() => setShowFreeze(false)} style={{ flex: 1 }} />
             </View>
           </View>

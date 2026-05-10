@@ -30,12 +30,14 @@ interface GameState {
   invalidAttempt: boolean
   lastBonus: 'rare' | 'milestone' | null
   wordlist: string[]
+  scoreMultiplier: number
+  bonusStartSecs: number
 }
 
 type Action =
   | { type: 'SET_LANGUAGE'; payload: { languageId: string; script: string; chainRule: string; wordlist: string[] } }
   | { type: 'SET_TIMER'; payload: TimerMode }
-  | { type: 'START_GAME'; payload?: string }
+  | { type: 'START_GAME'; payload?: string; bonusStartSecs?: number; scoreMultiplier?: number }
   | { type: 'SUBMIT_WORD'; payload: string; forceValid?: boolean }
   | { type: 'TICK' }
   | { type: 'EXPIRE' }
@@ -65,6 +67,8 @@ const INITIAL_STATE: GameState = {
   invalidAttempt: false,
   lastBonus: null,
   wordlist: [],
+  scoreMultiplier: 1,
+  bonusStartSecs: 0,
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -96,6 +100,9 @@ function reducer(state: GameState, action: Action): GameState {
     case 'START_GAME': {
       const validator = makeValidator(state)
       const startWord = action.payload ?? pickRandom(state.wordlist)
+      const bonus = action.bonusStartSecs ?? 0
+      const multiplier = action.scoreMultiplier ?? 1
+      const startTime = state.timerMode + bonus
       return {
         ...state,
         status: 'playing',
@@ -104,11 +111,13 @@ function reducer(state: GameState, action: Action): GameState {
         requiredUnit: validator.getEndUnit(startWord),
         score: 0,
         wordCount: 1,
-        baseTime: state.timerMode,
-        timeRemaining: state.timerMode,
+        baseTime: startTime,
+        timeRemaining: startTime,
         sessionStartTime: Date.now(),
         invalidAttempt: false,
         lastBonus: null,
+        scoreMultiplier: multiplier,
+        bonusStartSecs: bonus,
       }
     }
 
@@ -128,15 +137,16 @@ function reducer(state: GameState, action: Action): GameState {
 
       let lastBonus: GameState['lastBonus'] = null
       const newChain = [...state.chain, word]
-      let newScore = state.score + word.length * 10
+      const mult = state.scoreMultiplier ?? 1
+      let newScore = state.score + Math.round(word.length * 10 * mult)
 
       if (validator.isRareLetter(word)) {
-        newScore += 60
+        newScore += Math.round(60 * mult)
         lastBonus = 'rare'
       }
 
       if (newChain.length % 10 === 0) {
-        newScore += 100
+        newScore += Math.round(100 * mult)
         lastBonus = 'milestone'
       }
 

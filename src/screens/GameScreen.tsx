@@ -97,6 +97,7 @@ export default function GameScreen() {
   const [input, setInput] = useState('')
   const [showFreeze, setShowFreeze] = useState(false)
   const [freezeTokens, setFreezeTokens] = useState(0)
+  const [keyboardOpen, setKeyboardOpen] = useState(false)
   const [isChecking, setIsChecking] = useState(false)
   const [toast, setToast] = useState<{ message: string; variant: 'success' | 'error' | 'bonus' | 'milestone' } | null>(null)
   const [toastVisible, setToastVisible] = useState(false)
@@ -122,6 +123,12 @@ export default function GameScreen() {
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => true)
     return () => sub.remove()
+  }, [])
+
+  useEffect(() => {
+    const show = Keyboard.addListener('keyboardDidShow', () => setKeyboardOpen(true))
+    const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboardOpen(false))
+    return () => { show.remove(); hide.remove() }
   }, [])
 
   // Block swipe/gesture back during game
@@ -431,19 +438,16 @@ export default function GameScreen() {
       )}
 
       {/* REQUIRED LETTER HERO */}
-      <View style={styles.heroSection}>
-        <Text style={styles.startsWithLabel}>Next word starts with</Text>
+      <View style={[styles.heroSection, keyboardOpen && styles.heroSectionCompact]}>
+        {!keyboardOpen && <Text style={styles.startsWithLabel}>Next word starts with</Text>}
 
-        <View style={styles.circleWrapper}>
-          {/* Glow */}
-          <Animated.View style={[styles.circleGlow, { transform: [{ scale: pulseAnim }] }]} />
-
-          {/* Circle */}
-          <Animated.View style={[styles.circle, { transform: [{ scale: pulseAnim }] }]}>
-            <Text style={[styles.requiredLetter, { fontFamily: letterFont, fontSize: letterSize }]}>
+        <View style={[styles.circleWrapper, keyboardOpen && styles.circleWrapperCompact]}>
+          <Animated.View style={[styles.circleGlow, keyboardOpen && styles.circleGlowCompact, { transform: [{ scale: pulseAnim }] }]} />
+          <Animated.View style={[styles.circle, keyboardOpen && styles.circleCompact, { transform: [{ scale: pulseAnim }] }]}>
+            <Text style={[styles.requiredLetter, { fontFamily: letterFont, fontSize: keyboardOpen ? 36 : letterSize }]}>
               {requiredUnit}
             </Text>
-            {romanization ? (
+            {romanization && !keyboardOpen ? (
               <Text style={styles.romanization}>{romanization}</Text>
             ) : null}
           </Animated.View>
@@ -644,6 +648,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 16,
   },
+  heroSectionCompact: {
+    flex: 0,
+    paddingVertical: 8,
+  },
   startsWithLabel: {
     fontFamily: Fonts.bodyMedium,
     fontSize: 14,
@@ -655,12 +663,21 @@ const styles = StyleSheet.create({
     width: 192,
     height: 192,
   },
+  circleWrapperCompact: {
+    width: 100,
+    height: 100,
+  },
   circleGlow: {
     position: 'absolute',
     width: 192,
     height: 192,
     borderRadius: 96,
     backgroundColor: 'rgba(108,71,255,0.20)',
+  },
+  circleGlowCompact: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
   },
   circle: {
     width: 192,
@@ -672,6 +689,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 4,
+  },
+  circleCompact: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    borderWidth: 3,
   },
   requiredLetter: {
     color: Colors.primary,
@@ -711,7 +734,7 @@ const styles = StyleSheet.create({
   // Input card
   inputCard: {
     margin: 12,
-    marginBottom: 100,
+    marginBottom: 16,
     backgroundColor: Colors.surfaceHigh,
     borderRadius: 24,
     padding: 8,

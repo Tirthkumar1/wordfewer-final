@@ -698,7 +698,9 @@ const styles = StyleSheet.create({
   },
   requiredLetter: {
     color: Colors.primary,
-    lineHeight: 110,
+    lineHeight: undefined,
+    textAlignVertical: 'center',
+    includeFontPadding: false,
   },
   romanization: {
     fontFamily: Fonts.bodyMedium,

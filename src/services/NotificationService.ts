@@ -43,7 +43,7 @@ async function cancelByIdentifier(identifier: string) {
   }
 }
 
-// ─── Daily Challenge Reminder ─────────────────────────────────────────────────
+// ─── Daily Goal Reminder ──────────────────────────────────────────────────────
 // Fires every day at 10:00 AM local time
 
 export async function scheduleDailyChallenge(): Promise<void> {
@@ -53,9 +53,9 @@ export async function scheduleDailyChallenge(): Promise<void> {
   await cancelByIdentifier('daily_challenge')
 
   const messages = [
-    { title: "Today's Challenge is Live 🔥", body: "A new word chain awaits. Can you top the leaderboard?" },
-    { title: "Daily Challenge Ready 🧠", body: "A fresh challenge dropped. How long can you chain?" },
-    { title: "New Day, New Chain ⛓️", body: "Today's daily challenge is live. Play now!" },
+    { title: "Daily Goal Waiting 🔥", body: "Complete today's goal and keep your streak alive!" },
+    { title: "New Goal, New Chain ⛓️", body: "Today's daily goal is ready. Can you beat your best?" },
+    { title: "Your Daily Goal is Live 🧠", body: "Play a game, hit your goal, earn rewards!" },
   ]
   const pick = messages[new Date().getDay() % messages.length]
 

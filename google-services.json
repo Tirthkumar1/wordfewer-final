@@ -9,7 +9,7 @@
       "client_info": {
         "mobilesdk_app_id": "1:209043175961:android:6625c32bfe285905044888",
         "android_client_info": {
-          "package_name": "com.wordfever"
+          "package_name": "com.wordfewer"
         }
       },
       "oauth_client": [
@@ -17,7 +17,7 @@
           "client_id": "209043175961-0jtedm05vkmofckd6ied2ltrut0kie72.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
-            "package_name": "com.wordfever",
+            "package_name": "com.wordfewer",
             "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
           }
         },

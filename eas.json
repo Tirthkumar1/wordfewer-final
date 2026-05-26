@@ -28,7 +28,8 @@
     },
     "production": {
       "autoIncrement": true,
-"env": {
+      "prebuildCommand": "npx expo prebuild --clean --platform android",
+      "env": {
         "NODE_ENV": "production"
       }
     }

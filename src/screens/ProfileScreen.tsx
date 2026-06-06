@@ -18,7 +18,7 @@ import Svg, { Circle, Path } from 'react-native-svg'
 import GhostButton from '../components/GhostButton'
 import GradientButton from '../components/GradientButton'
 import { StorageKeys } from '../config/storageKeys'
-import { getStoredUser, signOut, type GoogleUser } from '../services/AuthService'
+import { getStoredUser, signIn, signOut, type GoogleUser } from '../services/AuthService'
 import { useAuth } from '../services/AuthContext'
 import { useGame } from '../store/gameStore'
 import { Colors, Fonts } from '../theme'
@@ -76,7 +76,7 @@ function AchievementBadge({ achievement }: { achievement: Achievement }) {
 
 export default function ProfileScreen() {
   const { state } = useGame()
-  const { onSignOut } = useAuth()
+  const { onSignOut, onSignIn } = useAuth()
   const [stats, setStats] = useState<Stats>({
     bestChain: 0, bestScore: 0, totalWords: 0, streak: 0, joinDate: '',
   })
@@ -107,7 +107,8 @@ export default function ProfileScreen() {
     if (gUser) setGoogleUser(gUser)
   }
 
-  const username = googleUser?.name ?? 'Player'
+  const isGuest = !googleUser
+  const username = googleUser?.name ?? 'Guest'
 
   async function handleSaveUsername() {
     const name = editInput.trim()
@@ -119,6 +120,13 @@ export default function ProfileScreen() {
       setGoogleUser(updated)
     }
     setShowEditModal(false)
+  }
+
+  async function handleSignIn() {
+    try {
+      const user = await signIn()
+      if (user) onSignIn()
+    } catch {}
   }
 
   async function handleSignOut() {
@@ -181,14 +189,16 @@ export default function ProfileScreen() {
           </View>
           <View style={styles.verifiedRow}>
             <Text style={styles.usernameText}>{username}</Text>
-            <VerifiedIcon />
+            {!isGuest && <VerifiedIcon />}
           </View>
           {googleUser?.email ? (
             <Text style={styles.emailText}>{googleUser.email}</Text>
           ) : null}
-          <Pressable onPress={() => { setEditInput(username); setShowEditModal(true) }}>
-            <Text style={styles.editLink}>Edit display name</Text>
-          </Pressable>
+          {!isGuest && (
+            <Pressable onPress={() => { setEditInput(username); setShowEditModal(true) }}>
+              <Text style={styles.editLink}>Edit display name</Text>
+            </Pressable>
+          )}
           <Text style={styles.joinDate}>Playing since {joinFormatted}</Text>
           <View style={styles.langPill}>
             <Text style={styles.langPillText}>
@@ -229,9 +239,13 @@ export default function ProfileScreen() {
 
         {/* Buttons */}
         <GhostButton label="Share Profile" onPress={handleShareProfile} style={styles.btn} />
-        <Pressable style={styles.signOutBtn} onPress={handleSignOut}>
-          <Text style={styles.signOutText}>Sign Out</Text>
-        </Pressable>
+        {isGuest ? (
+          <GradientButton label="Sign in with Google" onPress={handleSignIn} />
+        ) : (
+          <Pressable style={styles.signOutBtn} onPress={handleSignOut}>
+            <Text style={styles.signOutText}>Sign Out</Text>
+          </Pressable>
+        )}
 
         <View style={{ height: 100 }} />
       </ScrollView>

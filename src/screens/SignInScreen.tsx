@@ -37,9 +37,10 @@ function GoogleLogo() {
 
 type Props = {
   onSignedIn: () => void
+  onSkip?: () => void
 }
 
-export default function SignInScreen({ onSignedIn }: Props) {
+export default function SignInScreen({ onSignedIn, onSkip }: Props) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -92,6 +93,12 @@ export default function SignInScreen({ onSignedIn }: Props) {
 
           {!!error && <Text style={styles.errorText}>{error}</Text>}
         </View>
+
+        {onSkip && (
+          <Pressable onPress={onSkip} style={styles.skipBtn}>
+            <Text style={styles.skipText}>Play as Guest</Text>
+          </Pressable>
+        )}
       </View>
     </View>
   )
@@ -184,5 +191,15 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: Colors.secondary,
     textAlign: 'center',
+  },
+  skipBtn: {
+    marginTop: 24,
+    paddingVertical: 12,
+  },
+  skipText: {
+    fontFamily: Fonts.body,
+    fontSize: 15,
+    color: Colors.onSurfaceVariant,
+    textDecorationLine: 'underline',
   },
 })

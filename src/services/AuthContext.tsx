@@ -2,12 +2,13 @@ import React, { createContext, useContext } from 'react'
 
 interface AuthContextValue {
   onSignOut: () => void
+  onSignIn: () => void
 }
 
-const AuthContext = createContext<AuthContextValue>({ onSignOut: () => {} })
+const AuthContext = createContext<AuthContextValue>({ onSignOut: () => {}, onSignIn: () => {} })
 
-export function AuthProvider({ onSignOut, children }: { onSignOut: () => void; children: React.ReactNode }) {
-  return <AuthContext.Provider value={{ onSignOut }}>{children}</AuthContext.Provider>
+export function AuthProvider({ onSignOut, onSignIn, children }: { onSignOut: () => void; onSignIn: () => void; children: React.ReactNode }) {
+  return <AuthContext.Provider value={{ onSignOut, onSignIn }}>{children}</AuthContext.Provider>
 }
 
 export function useAuth() {

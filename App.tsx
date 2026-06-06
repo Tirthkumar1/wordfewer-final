@@ -35,6 +35,7 @@ export default function App() {
 
   const [authChecked, setAuthChecked] = useState(false)
   const [user, setUser] = useState<GoogleUser | null>(null)
+  const [isGuest, setIsGuest] = useState(false)
   const signedOutRef = useRef(false)
 
   useEffect(() => {
@@ -58,6 +59,7 @@ export default function App() {
       const silentUser = await signInSilently()
       if (silentUser) {
         setUser(silentUser)
+        setIsGuest(false)
         setAuthChecked(true)
         registerForPushNotifications()
         return
@@ -67,6 +69,7 @@ export default function App() {
     const stored = await getStoredUser()
     if (stored) {
       setUser(stored)
+      setIsGuest(false)
       registerForPushNotifications()
     }
     setAuthChecked(true)
@@ -75,6 +78,11 @@ export default function App() {
   function handleSignOut() {
     signedOutRef.current = true
     setUser(null)
+    setIsGuest(false)
+  }
+
+  function handleGuest() {
+    setIsGuest(true)
   }
 
   if (!fontsLoaded && !fontError) {
@@ -85,17 +93,17 @@ export default function App() {
     return <View style={{ flex: 1, backgroundColor: '#13121b' }} />
   }
 
-  if (!user) {
+  if (!user && !isGuest) {
     return (
       <GameProvider>
-        <SignInScreen onSignedIn={checkAuth} />
+        <SignInScreen onSignedIn={checkAuth} onSkip={handleGuest} />
       </GameProvider>
     )
   }
 
   return (
     <GameProvider>
-      <AuthProvider onSignOut={handleSignOut}>
+      <AuthProvider onSignOut={handleSignOut} onSignIn={checkAuth}>
         <AppNavigator />
       </AuthProvider>
     </GameProvider>

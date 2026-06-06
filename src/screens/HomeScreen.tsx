@@ -4,6 +4,7 @@ import type { StackNavigationProp } from '@react-navigation/stack'
 import React, { useEffect, useState } from 'react'
 import {
   Pressable,
+  ScrollView,
   StatusBar,
   StyleSheet,
   Text,

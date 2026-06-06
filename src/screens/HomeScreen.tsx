@@ -78,13 +78,17 @@ export default function HomeScreen() {
   const lang = langMeta[state.languageId] ?? langMeta['en']
 
   return (
-    <View style={[styles.root, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+    <View style={[styles.root, { paddingTop: insets.top }]}>
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
       <NeuralBackground />
       <View style={styles.orbViolet} />
       <View style={styles.orbCoral} />
 
-      <View style={styles.content}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 16 }]}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Wordmark */}
         <Text style={styles.wordmark}>WordFever</Text>
 
@@ -148,7 +152,7 @@ export default function HomeScreen() {
             requestOptions={{ requestNonPersonalizedAdsOnly: true }}
           />
         </View>
-      </View>
+      </ScrollView>
     </View>
   )
 }
@@ -158,11 +162,13 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.background,
   },
-  content: {
+  scroll: {
     flex: 1,
+  },
+  content: {
     paddingHorizontal: 20,
-    justifyContent: 'center',
-    gap: 20,
+    paddingTop: 16,
+    gap: 14,
   },
   orbViolet: {
     position: 'absolute',

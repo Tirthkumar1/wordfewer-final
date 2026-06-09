@@ -59,6 +59,21 @@ function getEncouragement(chainLen: number): string | null {
   return ENCOURAGE[chainLen] ?? null
 }
 
+// ─── Stage prize definitions ─────────────────────────────────────────────────
+
+const PRIZES: Record<number, { emoji: string; title: string; message: string }> = {
+  5:  { emoji: '⭐', title: 'Rising Star!',       message: 'Great start! You\'re on a roll!' },
+  10: { emoji: '🏆', title: 'Chain Champion!',    message: 'Incredible! You\'re getting good at this!' },
+  15: { emoji: '🔥', title: 'Word Warrior!',      message: 'You\'re on fire! Nothing can stop you!' },
+  20: { emoji: '💎', title: 'Diamond Mind!',      message: 'Your vocabulary is dazzling!' },
+  25: { emoji: '🧠', title: 'Genius Mode!',       message: 'Only the smartest reach this far!' },
+  30: { emoji: '👑', title: 'Word Master!',       message: 'You rule the word kingdom!' },
+  35: { emoji: '🚀', title: 'Unstoppable!',       message: 'You\'ve launched into legendary territory!' },
+  40: { emoji: '🦁', title: 'Word Lion!',         message: 'Roaring through 40 stages like a champion!' },
+  45: { emoji: '🌟', title: 'Superstar!',         message: 'Almost at the ultimate prize — keep going!' },
+  50: { emoji: '🏅', title: 'ULTIMATE CHAMPION!', message: 'You did it! 50 stages — you are a Word Legend!' },
+}
+
 // ─── Stage helpers ────────────────────────────────────────────────────────────
 
 function getStageNumber(chainLen: number): number {
@@ -336,8 +351,8 @@ export default function GameScreen() {
     if (chain.length < 5 || chain.length % 5 !== 0) return
     const stageNum = chain.length / 5
     setCompletedStage(stageNum)
-    // Prize milestones at stage 5 and 10
-    if (stageNum === 5 || stageNum === 10) {
+    // Prize milestones every 5 stages up to 50
+    if (stageNum <= 50 && stageNum % 5 === 0) {
       setPrizeStage(stageNum)
       setShowPrize(true)
       dispatch({ type: 'PAUSE' })
@@ -670,14 +685,10 @@ export default function GameScreen() {
       <Modal visible={showPrize} transparent animationType="fade">
         <View style={styles.overlay}>
           <View style={styles.prizeCard}>
-            <Text style={styles.prizeEmoji}>{prizeStage >= 10 ? '👑' : '🏆'}</Text>
-            <Text style={styles.prizeTitle}>
-              {prizeStage >= 10 ? 'Word Master!' : 'Chain Champion!'}
-            </Text>
+            <Text style={styles.prizeEmoji}>{PRIZES[prizeStage]?.emoji ?? '🎖️'}</Text>
+            <Text style={styles.prizeTitle}>{PRIZES[prizeStage]?.title ?? `Stage ${prizeStage}!`}</Text>
             <Text style={styles.prizeSub}>
-              {prizeStage >= 10
-                ? `Amazing! You completed ${prizeStage} stages (${prizeStage * 5} words)! You're a legend!`
-                : `Incredible! You completed ${prizeStage} stages (${prizeStage * 5} words)! Keep going!`}
+              {`${PRIZES[prizeStage]?.message ?? 'Amazing!'}\n${prizeStage * 5} words chained!`}
             </Text>
             <GradientButton
               label="Keep Going! 🚀"

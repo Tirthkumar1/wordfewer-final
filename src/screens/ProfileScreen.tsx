@@ -111,7 +111,7 @@ export default function ProfileScreen() {
   }
 
   const isGuest = !googleUser
-  const username = googleUser?.name ?? storedUsername || 'Player'
+  const username = googleUser?.name ?? (storedUsername || 'Player')
 
   async function handleSaveUsername() {
     const name = editInput.trim()

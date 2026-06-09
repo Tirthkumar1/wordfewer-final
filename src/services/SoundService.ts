@@ -1,9 +1,8 @@
 import { Audio } from 'expo-av'
-import * as FileSystem from 'expo-file-system'
+import { File, Paths } from 'expo-file-system'
 
 type SoundKey = 'correct' | 'wrong' | 'tick' | 'milestone' | 'stageComplete' | 'gameOver'
 
-// Note definitions: [frequency Hz, duration ms]
 const SOUND_DEFS: Record<SoundKey, Array<[number, number]>> = {
   correct:       [[523, 70], [659, 110]],
   wrong:         [[200, 160]],
@@ -26,7 +25,6 @@ function buildWav(notes: Array<[number, number]>): Uint8Array {
       const s = Math.floor(128 + 70 * env * Math.sin(2 * Math.PI * freq * t))
       allSamples.push(Math.max(0, Math.min(255, s)))
     }
-    // short silence between notes
     const gap = Math.floor(SR * 0.01)
     for (let i = 0; i < gap; i++) allSamples.push(128)
   }
@@ -46,12 +44,6 @@ function buildWav(notes: Array<[number, number]>): Uint8Array {
   return buf
 }
 
-function toBase64(bytes: Uint8Array): string {
-  let s = ''
-  for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i])
-  return btoa(s)
-}
-
 const soundCache: Partial<Record<SoundKey, Audio.Sound>> = {}
 let audioReady = false
 
@@ -63,13 +55,14 @@ async function ensureAudioMode() {
 
 async function loadSound(key: SoundKey): Promise<Audio.Sound | null> {
   try {
-    const path = `${FileSystem.cacheDirectory}wf_${key}_v2.wav`
-    const info = await FileSystem.getInfoAsync(path)
-    if (!info.exists) {
-      const b64 = toBase64(buildWav(SOUND_DEFS[key]))
-      await FileSystem.writeAsStringAsync(path, b64, { encoding: FileSystem.EncodingType.Base64 })
+    const file = new File(Paths.cache, `wf_${key}_v3.wav`)
+    if (!file.exists) {
+      const wav = buildWav(SOUND_DEFS[key])
+      const writer = file.writableStream().getWriter()
+      await writer.write(wav)
+      await writer.close()
     }
-    const { sound } = await Audio.Sound.createAsync({ uri: path })
+    const { sound } = await Audio.Sound.createAsync({ uri: file.uri })
     return sound
   } catch {
     return null

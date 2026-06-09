@@ -81,18 +81,20 @@ export default function ProfileScreen() {
     bestChain: 0, bestScore: 0, totalWords: 0, streak: 0, joinDate: '',
   })
   const [googleUser, setGoogleUser] = useState<GoogleUser | null>(null)
+  const [storedUsername, setStoredUsername] = useState('')
   const [showEditModal, setShowEditModal] = useState(false)
   const [editInput, setEditInput] = useState('')
 
   useFocusEffect(useCallback(() => { load() }, []))
 
   async function load() {
-    const [pb, streak, total, join, gUser] = await Promise.all([
+    const [pb, streak, total, join, gUser, uname] = await Promise.all([
       AsyncStorage.getItem(StorageKeys.PERSONAL_BEST),
       AsyncStorage.getItem(StorageKeys.STREAK),
       AsyncStorage.getItem(StorageKeys.TOTAL_WORDS),
       AsyncStorage.getItem(StorageKeys.JOIN_DATE),
       getStoredUser(),
+      AsyncStorage.getItem(StorageKeys.USERNAME),
     ])
     const today = new Date().toISOString().split('T')[0]
     if (!join) await AsyncStorage.setItem(StorageKeys.JOIN_DATE, today)
@@ -105,15 +107,17 @@ export default function ProfileScreen() {
       joinDate: join ?? today,
     })
     if (gUser) setGoogleUser(gUser)
+    if (uname) setStoredUsername(uname)
   }
 
   const isGuest = !googleUser
-  const username = googleUser?.name ?? 'Guest'
+  const username = googleUser?.name ?? storedUsername || 'Player'
 
   async function handleSaveUsername() {
     const name = editInput.trim()
     if (!name) return
     await AsyncStorage.setItem(StorageKeys.USERNAME, name)
+    setStoredUsername(name)
     if (googleUser) {
       const updated = { ...googleUser, name }
       await AsyncStorage.setItem('wordfewer_google_user', JSON.stringify(updated))

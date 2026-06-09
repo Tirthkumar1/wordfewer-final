@@ -6,17 +6,17 @@ import { View } from 'react-native'
 import { AppNavigator } from './src/navigation/AppNavigator'
 import { StorageKeys } from './src/config/storageKeys'
 import { GameProvider } from './src/store/gameStore'
-import SignInScreen from './src/screens/SignInScreen'
+import OnboardingScreen from './src/screens/OnboardingScreen'
 import {
   configureGoogleSignIn,
   getStoredUser,
   signInSilently,
+  signOut,
   type GoogleUser,
 } from './src/services/AuthService'
 import { AuthProvider } from './src/services/AuthContext'
 import { registerForPushNotifications } from './src/services/NotificationService'
 
-// Replace with your actual Web Client ID from Google Cloud Console
 const WEB_CLIENT_ID = '209043175961-ud150iilnuqgbpsn0pjf42b5f4job27r.apps.googleusercontent.com'
 
 SplashScreen.preventAutoHideAsync()
@@ -34,8 +34,8 @@ export default function App() {
   })
 
   const [authChecked, setAuthChecked] = useState(false)
+  const [onboardingDone, setOnboardingDone] = useState(false)
   const [user, setUser] = useState<GoogleUser | null>(null)
-  const [isGuest, setIsGuest] = useState(false)
   const signedOutRef = useRef(false)
 
   useEffect(() => {
@@ -54,12 +54,11 @@ export default function App() {
       await AsyncStorage.setItem(StorageKeys.JOIN_DATE, new Date().toISOString())
     }
 
-    // Skip silent sign-in if the user explicitly signed out this session
     if (!signedOutRef.current) {
       const silentUser = await signInSilently()
       if (silentUser) {
         setUser(silentUser)
-        setIsGuest(false)
+        setOnboardingDone(true)
         setAuthChecked(true)
         registerForPushNotifications()
         return
@@ -69,20 +68,37 @@ export default function App() {
     const stored = await getStoredUser()
     if (stored) {
       setUser(stored)
-      setIsGuest(false)
+      setOnboardingDone(true)
       registerForPushNotifications()
+      setAuthChecked(true)
+      return
     }
+
+    // Guest user: check if they completed onboarding (have a username)
+    const username = await AsyncStorage.getItem(StorageKeys.USERNAME)
+    setOnboardingDone(!!username)
     setAuthChecked(true)
   }
 
-  function handleSignOut() {
-    signedOutRef.current = true
-    setUser(null)
-    setIsGuest(false)
+  function handleOnboardingComplete(_name: string, googleUser?: GoogleUser) {
+    if (googleUser) {
+      setUser(googleUser)
+      registerForPushNotifications()
+    }
+    setOnboardingDone(true)
   }
 
-  function handleGuest() {
-    setIsGuest(true)
+  async function handleSignOut() {
+    signedOutRef.current = true
+    await signOut()
+    // Clear username so onboarding shows again
+    await AsyncStorage.removeItem(StorageKeys.USERNAME)
+    setUser(null)
+    setOnboardingDone(false)
+  }
+
+  async function handleSignIn() {
+    await checkAuth()
   }
 
   if (!fontsLoaded && !fontError) {
@@ -93,17 +109,17 @@ export default function App() {
     return <View style={{ flex: 1, backgroundColor: '#13121b' }} />
   }
 
-  if (!user && !isGuest) {
+  if (!onboardingDone) {
     return (
       <GameProvider>
-        <SignInScreen onSignedIn={checkAuth} onSkip={handleGuest} />
+        <OnboardingScreen onComplete={handleOnboardingComplete} />
       </GameProvider>
     )
   }
 
   return (
     <GameProvider>
-      <AuthProvider onSignOut={handleSignOut} onSignIn={checkAuth}>
+      <AuthProvider onSignOut={handleSignOut} onSignIn={handleSignIn}>
         <AppNavigator />
       </AuthProvider>
     </GameProvider>

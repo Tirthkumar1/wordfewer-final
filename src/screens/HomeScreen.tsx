@@ -16,7 +16,7 @@ import { BannerAd, BannerAdSize, TestIds } from 'react-native-google-mobile-ads'
 import GradientButton from '../components/GradientButton'
 import GhostButton from '../components/GhostButton'
 import NeuralBackground from '../components/NeuralBackground'
-import { useGame, TIMER_OPTIONS, type TimerMode } from '../store/gameStore'
+import { useGame, TIMER_OPTIONS, type TimerMode, type GameMode } from '../store/gameStore'
 import { Colors, Fonts } from '../theme'
 import type { RootStackParamList } from '../navigation/AppNavigator'
 
@@ -130,6 +130,24 @@ export default function HomeScreen() {
                 <Text style={[styles.timerChipText, state.timerMode === t && styles.timerChipTextActive]}>
                   {t}s
                 </Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+
+        {/* Game mode selector */}
+        <View>
+          <Text style={styles.timerLabel}>MODE</Text>
+          <View style={styles.modeRow}>
+            {([['freerun', '∞', 'Free Run', 'No time limit on chain'], ['stages', '🏆', 'Stages', 'Complete 5-word stages']] as const).map(([mode, icon, label, desc]) => (
+              <Pressable
+                key={mode}
+                style={[styles.modeCard, state.gameMode === mode && styles.modeCardActive]}
+                onPress={() => dispatch({ type: 'SET_GAME_MODE', payload: mode as GameMode })}
+              >
+                <Text style={styles.modeIcon}>{icon}</Text>
+                <Text style={[styles.modeLabel, state.gameMode === mode && styles.modeLabelActive]}>{label}</Text>
+                <Text style={styles.modeDesc}>{desc}</Text>
               </Pressable>
             ))}
           </View>
@@ -260,6 +278,19 @@ const styles = StyleSheet.create({
     color: Colors.onSurfaceVariant,
   },
   timerChipTextActive: { color: '#ffffff' },
+  modeRow: { flexDirection: 'row', gap: 10 },
+  modeCard: {
+    flex: 1, backgroundColor: Colors.surfaceLow, borderRadius: 16,
+    padding: 14, alignItems: 'center', gap: 4,
+  },
+  modeCardActive: {
+    backgroundColor: 'rgba(108,71,255,0.18)',
+    borderWidth: 2, borderColor: Colors.primaryContainer,
+  },
+  modeIcon: { fontSize: 24 },
+  modeLabel: { fontFamily: Fonts.bodyMedium, fontSize: 13, color: Colors.onSurfaceVariant },
+  modeLabelActive: { color: Colors.primary },
+  modeDesc: { fontFamily: Fonts.body, fontSize: 10, color: Colors.onSurfaceVariant, textAlign: 'center' },
   bannerContainer: {
     alignItems: 'center',
     marginTop: 8,

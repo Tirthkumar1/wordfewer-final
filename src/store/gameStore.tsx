@@ -10,9 +10,11 @@ import { ChainValidator } from '../engine/ChainValidator'
 
 type Status = 'idle' | 'playing' | 'paused' | 'gameover'
 export type TimerMode = 10 | 20 | 30 | 40 | 50 | 60
+export type GameMode = 'freerun' | 'stages'
 export const TIMER_OPTIONS: TimerMode[] = [10, 20, 30, 40, 50, 60]
 
 interface GameState {
+  gameMode: GameMode
   status: Status
   languageId: string
   script: string
@@ -37,6 +39,7 @@ interface GameState {
 type Action =
   | { type: 'SET_LANGUAGE'; payload: { languageId: string; script: string; chainRule: string; wordlist: string[] } }
   | { type: 'SET_TIMER'; payload: TimerMode }
+  | { type: 'SET_GAME_MODE'; payload: GameMode }
   | { type: 'START_GAME'; payload?: string; bonusStartSecs?: number; scoreMultiplier?: number }
   | { type: 'SUBMIT_WORD'; payload: string; forceValid?: boolean }
   | { type: 'TICK' }
@@ -50,6 +53,7 @@ type Action =
 // ─── Initial state ────────────────────────────────────────────────────────────
 
 const INITIAL_STATE: GameState = {
+  gameMode: 'freerun',
   status: 'idle',
   languageId: 'en',
   script: 'latin',
@@ -96,6 +100,9 @@ function reducer(state: GameState, action: Action): GameState {
 
     case 'SET_TIMER':
       return { ...state, timerMode: action.payload, baseTime: action.payload, timeRemaining: action.payload }
+
+    case 'SET_GAME_MODE':
+      return { ...state, gameMode: action.payload }
 
     case 'START_GAME': {
       const validator = makeValidator(state)
@@ -201,7 +208,7 @@ function reducer(state: GameState, action: Action): GameState {
       }
 
     case 'RESET':
-      return { ...INITIAL_STATE, personalBest: state.personalBest, timerMode: state.timerMode, wordlist: state.wordlist, languageId: state.languageId, script: state.script, chainRule: state.chainRule }
+      return { ...INITIAL_STATE, gameMode: state.gameMode, personalBest: state.personalBest, timerMode: state.timerMode, wordlist: state.wordlist, languageId: state.languageId, script: state.script, chainRule: state.chainRule }
 
     default:
       return state

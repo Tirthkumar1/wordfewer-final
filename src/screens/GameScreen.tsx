@@ -19,12 +19,55 @@ import type { RootStackParamList } from '../navigation/AppNavigator'
 import { useGame } from '../store/gameStore'
 import { ChainValidator } from '../engine/ChainValidator'
 import { getBonusStartSecs, getActiveScoreMultiplier, useFreezeToken, getRewardState } from '../services/RewardService'
+import { playSound, preloadSounds } from '../services/SoundService'
 import { Colors, Fonts, getNativeFont } from '../theme'
-
 import { showRewarded } from '../services/AdService'
 
 type Nav = StackNavigationProp<RootStackParamList>
 type GameRoute = RouteProp<RootStackParamList, 'Game'>
+
+// ─── Kid-friendly colorful letter palette ────────────────────────────────────
+
+const LETTER_COLORS = [
+  '#FF6B6B', // red-coral
+  '#FF9F40', // orange
+  '#FFD700', // yellow
+  '#52D17C', // green
+  '#40C4FF', // sky blue
+  '#B388FF', // violet
+  '#FF80AB', // pink
+]
+
+function getLetterColor(chainLen: number): string {
+  return LETTER_COLORS[chainLen % LETTER_COLORS.length]
+}
+
+// ─── Encouragement messages ───────────────────────────────────────────────────
+
+const ENCOURAGE: Record<number, string> = {
+  5:  '⭐ Nice!',
+  10: '🌟 Great!',
+  15: '🔥 Awesome!',
+  20: '💥 Super Star!',
+  25: '🧠 Genius!',
+  30: '🚀 Unstoppable!',
+}
+
+function getEncouragement(chainLen: number): string | null {
+  if (chainLen < 5) return null
+  if (chainLen >= 30 && chainLen % 5 === 0) return '🚀 Unstoppable!'
+  return ENCOURAGE[chainLen] ?? null
+}
+
+// ─── Stage helpers ────────────────────────────────────────────────────────────
+
+function getStageNumber(chainLen: number): number {
+  return Math.max(1, Math.ceil(chainLen / 5))
+}
+
+function getWordsInStage(chainLen: number): number {
+  return chainLen === 0 ? 0 : ((chainLen - 1) % 5) + 1
+}
 
 // ─── Romanisation map for Indic akshars ──────────────────────────────────────
 
@@ -36,7 +79,6 @@ const ROMAN_MAP: Record<string, string> = {
   'બ': 'BA', 'ભ': 'BHA', 'મ': 'MA', 'ય': 'YA', 'ર': 'RA',
   'લ': 'LA', 'વ': 'VA', 'શ': 'SHA', 'ષ': 'SHA', 'સ': 'SA',
   'હ': 'HA', 'ળ': 'LA', 'ક્ષ': 'KSH', 'જ્ઞ': 'GYA',
-  // Devanagari
   'क': 'KA', 'ख': 'KHA', 'ग': 'GA', 'घ': 'GHA', 'च': 'CHA',
   'छ': 'CHHA', 'ज': 'JA', 'झ': 'JHA', 'ट': 'TA', 'ठ': 'THA',
   'ड': 'DA', 'ढ': 'DHA', 'ण': 'NA', 'त': 'TA', 'थ': 'THA',
@@ -101,6 +143,13 @@ export default function GameScreen() {
   const [isChecking, setIsChecking] = useState(false)
   const [toast, setToast] = useState<{ message: string; variant: 'success' | 'error' | 'bonus' | 'milestone' } | null>(null)
   const [toastVisible, setToastVisible] = useState(false)
+
+  // Stage mode state
+  const [showStageComplete, setShowStageComplete] = useState(false)
+  const [completedStage, setCompletedStage] = useState(0)
+  const [showPrize, setShowPrize] = useState(false)
+  const [prizeStage, setPrizeStage] = useState(0)
+
   const prevChainLenRef = useRef(0)
   const pendingSubmitRef = useRef(false)
   const remoteWordCache = useRef<Set<string>>(new Set())
@@ -113,11 +162,19 @@ export default function GameScreen() {
   const pulseAnim = useRef(new Animated.Value(1)).current
   const wordSlideAnim = useRef(new Animated.Value(30)).current
   const wordOpacityAnim = useRef(new Animated.Value(0)).current
+  const countdownScaleAnim = useRef(new Animated.Value(0.4)).current
+  const countdownOpacityAnim = useRef(new Animated.Value(0)).current
   const freezeShownAt = useRef<number>(-1)
+  const prevTimeRef = useRef<number>(-1)
 
   const insets = useSafeAreaInsets()
-  const { status, timeRemaining, baseTime, chain, score, currentWord, requiredUnit, script, languageId, timerMode } = state
+  const { status, timeRemaining, baseTime, chain, score, currentWord, requiredUnit, script, languageId, timerMode, gameMode } = state
   const isIndic = script === 'gujarati' || script === 'devanagari'
+
+  const letterColor = getLetterColor(chain.length)
+
+  // Preload sounds on mount
+  useEffect(() => { preloadSounds() }, [])
 
   // Block Android hardware back button during game
   useEffect(() => {
@@ -138,9 +195,10 @@ export default function GameScreen() {
     })
   }, [navigation, status])
 
-  // Navigate to game over — show interstitial first
+  // Navigate to game over
   useEffect(() => {
     if (status !== 'gameover') return
+    playSound('gameOver')
     if (isDailyChallenge) {
       submitDailyResult(state.languageId, state.chain.length, state.score)
     }
@@ -166,7 +224,6 @@ export default function GameScreen() {
     }
   }, [])
 
-  // Start game once wordlist is loaded
   useEffect(() => {
     if (status === 'idle' && state.wordlist.length > 0) startGame()
   }, [state.wordlist.length, status])
@@ -200,6 +257,22 @@ export default function GameScreen() {
     }
   }, [timeRemaining, status])
 
+  // Countdown sound + animation for last 5 seconds
+  useEffect(() => {
+    if (status !== 'playing') return
+    if (timeRemaining <= 5 && timeRemaining > 0 && timeRemaining !== prevTimeRef.current) {
+      prevTimeRef.current = timeRemaining
+      playSound('tick')
+      // Animate countdown number pop-in
+      countdownScaleAnim.setValue(0.4)
+      countdownOpacityAnim.setValue(1)
+      Animated.parallel([
+        Animated.spring(countdownScaleAnim, { toValue: 1, useNativeDriver: true, speed: 40, bounciness: 14 }),
+        Animated.timing(countdownOpacityAnim, { toValue: 0, duration: 800, delay: 400, useNativeDriver: true }),
+      ]).start()
+    }
+  }, [timeRemaining, status])
+
   // Shake + freeze prompt at 2s
   useEffect(() => {
     if (status === 'playing' && timeRemaining === 2 && freezeShownAt.current !== chain.length) {
@@ -216,7 +289,7 @@ export default function GameScreen() {
     if (status === 'gameover') setShowFreeze(false)
   }, [timeRemaining, status])
 
-  // Timer bar width animation — reset on new word, stop when not playing
+  // Timer bar animation
   useEffect(() => {
     timerBarAnimation.current?.stop()
     timerBarAnim.setValue(1)
@@ -230,12 +303,12 @@ export default function GameScreen() {
     if (status === 'playing') anim.start()
   }, [baseTime, currentWord, status])
 
-  // Pulse animation on required letter circle
+  // Pulse animation on letter circle
   useEffect(() => {
     const loop = Animated.loop(
       Animated.sequence([
-        Animated.timing(pulseAnim, { toValue: 1.04, duration: 1000, useNativeDriver: true, easing: Easing.inOut(Easing.sin) }),
-        Animated.timing(pulseAnim, { toValue: 1.0, duration: 1000, useNativeDriver: true, easing: Easing.inOut(Easing.sin) }),
+        Animated.timing(pulseAnim, { toValue: 1.05, duration: 900, useNativeDriver: true, easing: Easing.inOut(Easing.sin) }),
+        Animated.timing(pulseAnim, { toValue: 1.0, duration: 900, useNativeDriver: true, easing: Easing.inOut(Easing.sin) }),
       ]),
     )
     loop.start()
@@ -257,6 +330,25 @@ export default function GameScreen() {
     setTimeout(() => trailRef.current?.scrollToEnd({ animated: true }), 100)
   }, [chain.length])
 
+  // Stage complete detection (stages mode only)
+  useEffect(() => {
+    if (gameMode !== 'stages') return
+    if (chain.length < 5 || chain.length % 5 !== 0) return
+    const stageNum = chain.length / 5
+    setCompletedStage(stageNum)
+    // Prize milestones at stage 5 and 10
+    if (stageNum === 5 || stageNum === 10) {
+      setPrizeStage(stageNum)
+      setShowPrize(true)
+      dispatch({ type: 'PAUSE' })
+      playSound('stageComplete')
+    } else {
+      setShowStageComplete(true)
+      playSound('stageComplete')
+      setTimeout(() => setShowStageComplete(false), 1800)
+    }
+  }, [chain.length, gameMode])
+
   function showToast(message: string, variant: 'success' | 'error' | 'bonus' | 'milestone') {
     setToast({ message, variant })
     setToastVisible(true)
@@ -271,13 +363,24 @@ export default function GameScreen() {
       const pts = word.length * 10
       if (state.lastBonus === 'rare') {
         showToast(`★ Rare letter! +${pts + 60} pts`, 'bonus')
+        playSound('milestone')
       } else if (state.lastBonus === 'milestone') {
         showToast(`🔗 Chain of ${chain.length}! Keep going!`, 'milestone')
+        playSound('milestone')
       } else {
-        showToast(`+${pts} pts`, 'success')
+        // Encouragement at milestones (free run mode or non-stage-boundary)
+        const encourage = getEncouragement(chain.length)
+        if (encourage && gameMode === 'freerun') {
+          showToast(encourage, 'milestone')
+          playSound('milestone')
+        } else {
+          showToast(`+${pts} pts`, 'success')
+          playSound('correct')
+        }
       }
     } else {
       showToast('Not in dictionary or already used', 'error')
+      playSound('wrong')
     }
     prevChainLenRef.current = chain.length
   }, [state.invalidAttempt, chain.length, state.lastBonus])
@@ -304,7 +407,6 @@ export default function GameScreen() {
     const { chain: currentChain, currentWord, languageId, wordlist, chainRule } = state
     const validator = new ChainValidator(wordlist, chainRule)
 
-    // Fast path: word is in local dictionary
     const inLocal = validator.isInDictionary(word)
     const validChain = validator.isValidChain(currentWord, word)
     const notDuplicate = !currentChain.some(w => w.toLowerCase() === word.toLowerCase())
@@ -324,19 +426,19 @@ export default function GameScreen() {
       Animated.timing(shakeAnim, { toValue: 0, duration: 60, useNativeDriver: true }),
     ]).start()
 
-    // Chain rule or duplicate failed — reject immediately, no point checking remote
     if (!validChain) {
       showToast(`Start with "${currentWord.slice(-1).toUpperCase()}"`, 'error')
+      playSound('wrong')
       shake()
       return
     }
     if (!notDuplicate) {
       showToast('Already used!', 'error')
+      playSound('wrong')
       shake()
       return
     }
 
-    // Word not in local dict — check remote DB
     setIsChecking(true)
     const valid = await validateRemote(word.toLowerCase(), languageId)
     setIsChecking(false)
@@ -348,6 +450,7 @@ export default function GameScreen() {
       setInput('')
     } else {
       showToast('Not in dictionary', 'error')
+      playSound('wrong')
       shake()
     }
   }, [input, isChecking, state, dispatch, shakeAnim])
@@ -366,11 +469,12 @@ export default function GameScreen() {
 
   const trailWords = chain.slice(-5)
   const barColor = timerColor(timeRemaining)
-  const letterFont = isIndic
-    ? getNativeFont(script)
-    : Fonts.game
+  const letterFont = isIndic ? getNativeFont(script) : Fonts.game
   const letterSize = isIndic ? 80 : 96
   const romanization = isIndic ? getRomanization(requiredUnit) : null
+
+  const stageNum = gameMode === 'stages' ? getStageNumber(chain.length) : 0
+  const wordsInStage = gameMode === 'stages' ? getWordsInStage(chain.length) : 0
 
   return (
     <KeyboardAvoidingView
@@ -383,21 +487,33 @@ export default function GameScreen() {
 
       {/* TOP BAR */}
       <View style={[styles.topBar, { paddingTop: Math.max(insets.top, 16) + 8 }]}>
-        {/* Chain counter */}
         <View style={styles.chainPill}>
           <LinkSmallIcon />
           <Text style={styles.chainNum}>{chain.length}</Text>
         </View>
 
-        {/* Score */}
         <View style={styles.scoreCenter}>
           <Text style={styles.scoreLabel}>TOTAL SCORE</Text>
           <Text style={styles.scoreValue}>{score}</Text>
         </View>
 
-        {/* Spacer to keep score centered */}
         <View style={styles.topBarSpacer} />
       </View>
+
+      {/* STAGE PROGRESS BAR (stages mode) */}
+      {gameMode === 'stages' && status === 'playing' && (
+        <View style={styles.stageBar}>
+          <Text style={styles.stageLabel}>STAGE {stageNum}</Text>
+          <View style={styles.stageTrack}>
+            {[1, 2, 3, 4, 5].map(i => (
+              <View
+                key={i}
+                style={[styles.stageDot, i <= wordsInStage && styles.stageDotFilled]}
+              />
+            ))}
+          </View>
+        </View>
+      )}
 
       {/* WORD TRAIL */}
       <View style={styles.trailWrapper}>
@@ -420,7 +536,6 @@ export default function GameScreen() {
             </React.Fragment>
           ))}
         </ScrollView>
-        {/* Left fade mask */}
         <View pointerEvents="none" style={styles.trailFadeMask} />
       </View>
 
@@ -442,15 +557,43 @@ export default function GameScreen() {
         {!keyboardOpen && <Text style={styles.startsWithLabel}>Next word starts with</Text>}
 
         <View style={[styles.circleWrapper, keyboardOpen && styles.circleWrapperCompact]}>
-          <Animated.View style={[styles.circleGlow, keyboardOpen && styles.circleGlowCompact, { transform: [{ scale: pulseAnim }] }]} />
-          <Animated.View style={[styles.circle, keyboardOpen && styles.circleCompact, { transform: [{ scale: pulseAnim }] }]}>
-            <Text style={[styles.requiredLetter, { fontFamily: letterFont, fontSize: keyboardOpen ? 36 : letterSize }]}>
+          {/* Colorful glow */}
+          <Animated.View
+            style={[
+              styles.circleGlow,
+              keyboardOpen && styles.circleGlowCompact,
+              { backgroundColor: letterColor + '33', transform: [{ scale: pulseAnim }] },
+            ]}
+          />
+          {/* Letter circle with kid-friendly color */}
+          <Animated.View
+            style={[
+              styles.circle,
+              keyboardOpen && styles.circleCompact,
+              { borderColor: letterColor, transform: [{ scale: pulseAnim }] },
+            ]}
+          >
+            <Text style={[styles.requiredLetter, { fontFamily: letterFont, fontSize: keyboardOpen ? 36 : letterSize, color: letterColor }]}>
               {requiredUnit}
             </Text>
             {romanization && !keyboardOpen ? (
-              <Text style={styles.romanization}>{romanization}</Text>
+              <Text style={[styles.romanization, { color: letterColor }]}>{romanization}</Text>
             ) : null}
           </Animated.View>
+
+          {/* Countdown overlay */}
+          {timeRemaining <= 5 && timeRemaining > 0 && !keyboardOpen && (
+            <Animated.View
+              pointerEvents="none"
+              style={[styles.countdownOverlay, { opacity: countdownOpacityAnim }]}
+            >
+              <Animated.Text
+                style={[styles.countdownNum, { transform: [{ scale: countdownScaleAnim }] }]}
+              >
+                {timeRemaining}
+              </Animated.Text>
+            </Animated.View>
+          )}
         </View>
       </View>
 
@@ -476,7 +619,7 @@ export default function GameScreen() {
       {/* INPUT CARD */}
       <View style={styles.inputCard}>
         {isIndic && (
-          <Text style={[styles.indicHint, { fontFamily: getNativeFont(script) }]}>
+          <Text style={[styles.indicHint, { fontFamily: getNativeFont(script), color: letterColor }]}>
             {requiredUnit}
           </Text>
         )}
@@ -493,7 +636,11 @@ export default function GameScreen() {
             onSubmitEditing={handleSubmit}
             returnKeyType="send"
           />
-          <Pressable style={[styles.submitBtn, isChecking && styles.submitBtnChecking]} onPress={handleSubmit} disabled={isChecking}>
+          <Pressable
+            style={[styles.submitBtn, { backgroundColor: letterColor }, isChecking && styles.submitBtnChecking]}
+            onPress={handleSubmit}
+            disabled={isChecking}
+          >
             {isChecking
               ? <Text style={styles.checkingText}>...</Text>
               : <ArrowUpIcon />}
@@ -510,6 +657,38 @@ export default function GameScreen() {
           onHide={() => { setToastVisible(false); setToast(null) }}
         />
       )}
+
+      {/* STAGE COMPLETE FLASH OVERLAY */}
+      {showStageComplete && (
+        <View pointerEvents="none" style={styles.stageFlash}>
+          <Text style={styles.stageFlashText}>🎉 Stage {completedStage} Complete!</Text>
+          <Text style={styles.stageFlashSub}>Stage {completedStage + 1} →</Text>
+        </View>
+      )}
+
+      {/* PRIZE MODAL (stage 5 and 10) */}
+      <Modal visible={showPrize} transparent animationType="fade">
+        <View style={styles.overlay}>
+          <View style={styles.prizeCard}>
+            <Text style={styles.prizeEmoji}>{prizeStage >= 10 ? '👑' : '🏆'}</Text>
+            <Text style={styles.prizeTitle}>
+              {prizeStage >= 10 ? 'Word Master!' : 'Chain Champion!'}
+            </Text>
+            <Text style={styles.prizeSub}>
+              {prizeStage >= 10
+                ? `Amazing! You completed ${prizeStage} stages (${prizeStage * 5} words)! You're a legend!`
+                : `Incredible! You completed ${prizeStage} stages (${prizeStage * 5} words)! Keep going!`}
+            </Text>
+            <GradientButton
+              label="Keep Going! 🚀"
+              onPress={() => {
+                setShowPrize(false)
+                dispatch({ type: 'RESUME' })
+              }}
+            />
+          </View>
+        </View>
+      </Modal>
 
       {/* FREEZE MODAL */}
       <Modal visible={showFreeze} transparent animationType="fade">
@@ -543,7 +722,6 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
   },
 
-  // Top bar
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -568,9 +746,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.secondary,
   },
-  scoreCenter: {
-    alignItems: 'center',
-  },
+  scoreCenter: { alignItems: 'center' },
   scoreLabel: {
     fontFamily: Fonts.body,
     fontSize: 10,
@@ -583,15 +759,33 @@ const styles = StyleSheet.create({
     fontSize: 20,
     color: Colors.onSurface,
   },
-  topBarSpacer: {
-    width: 40,
+  topBarSpacer: { width: 40 },
+
+  // Stage bar
+  stageBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    paddingVertical: 6,
+    paddingHorizontal: 20,
   },
+  stageLabel: {
+    fontFamily: Fonts.bodyMedium,
+    fontSize: 11,
+    color: Colors.primary,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+  },
+  stageTrack: { flexDirection: 'row', gap: 6 },
+  stageDot: {
+    width: 10, height: 10, borderRadius: 5,
+    backgroundColor: Colors.surfaceHighest,
+  },
+  stageDotFilled: { backgroundColor: Colors.primaryContainer },
 
   // Trail
-  trailWrapper: {
-    marginTop: 12,
-    height: 44,
-  },
+  trailWrapper: { marginTop: 8, height: 44 },
   trailContent: {
     paddingHorizontal: 20,
     alignItems: 'center',
@@ -608,16 +802,9 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#94a3b8',
   },
-  trailArrow: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  trailArrow: { alignItems: 'center', justifyContent: 'center' },
   trailFadeMask: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    bottom: 0,
-    width: 32,
+    position: 'absolute', top: 0, left: 0, bottom: 0, width: 32,
     backgroundColor: 'transparent',
   },
 
@@ -633,7 +820,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(201,190,255,0.20)',
     paddingHorizontal: 18,
     paddingVertical: 8,
-    marginTop: 16,
+    marginTop: 12,
   },
   currentWordText: {
     fontFamily: Fonts.game,
@@ -648,10 +835,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 16,
   },
-  heroSectionCompact: {
-    flex: 0,
-    paddingVertical: 8,
-  },
+  heroSectionCompact: { flex: 0, paddingVertical: 8 },
   startsWithLabel: {
     fontFamily: Fonts.bodyMedium,
     fontSize: 14,
@@ -663,26 +847,14 @@ const styles = StyleSheet.create({
     width: 192,
     height: 192,
   },
-  circleWrapperCompact: {
-    width: 100,
-    height: 100,
-  },
+  circleWrapperCompact: { width: 100, height: 100 },
   circleGlow: {
     position: 'absolute',
-    width: 192,
-    height: 192,
-    borderRadius: 96,
-    backgroundColor: 'rgba(108,71,255,0.20)',
+    width: 192, height: 192, borderRadius: 96,
   },
-  circleGlowCompact: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-  },
+  circleGlowCompact: { width: 100, height: 100, borderRadius: 50 },
   circle: {
-    width: 192,
-    height: 192,
-    borderRadius: 96,
+    width: 192, height: 192, borderRadius: 96,
     borderWidth: 4,
     borderColor: Colors.primaryContainer,
     backgroundColor: Colors.surfaceLowest,
@@ -691,13 +863,9 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   circleCompact: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    borderWidth: 3,
+    width: 100, height: 100, borderRadius: 50, borderWidth: 3,
   },
   requiredLetter: {
-    color: Colors.primary,
     lineHeight: undefined,
     textAlignVertical: 'center',
     includeFontPadding: false,
@@ -705,9 +873,23 @@ const styles = StyleSheet.create({
   romanization: {
     fontFamily: Fonts.bodyMedium,
     fontSize: 14,
-    color: Colors.primary,
     opacity: 0.6,
     marginTop: -8,
+  },
+
+  // Countdown overlay
+  countdownOverlay: {
+    position: 'absolute',
+    width: 192, height: 192, borderRadius: 96,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(19,18,27,0.75)',
+  },
+  countdownNum: {
+    fontFamily: Fonts.game,
+    fontSize: 100,
+    color: '#FFD700',
+    includeFontPadding: false,
   },
 
   // Timer
@@ -743,7 +925,6 @@ const styles = StyleSheet.create({
   },
   indicHint: {
     fontSize: 32,
-    color: Colors.primary,
     textAlign: 'center',
     paddingVertical: 4,
   },
@@ -769,13 +950,59 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  submitBtnChecking: {
-    backgroundColor: Colors.surfaceHigh,
-  },
+  submitBtnChecking: { backgroundColor: Colors.surfaceHigh },
   checkingText: {
     fontFamily: Fonts.headline,
     fontSize: 18,
     color: Colors.onSurfaceVariant,
+  },
+
+  // Stage flash overlay
+  stageFlash: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    pointerEvents: 'none',
+  },
+  stageFlashText: {
+    fontFamily: Fonts.headlineEB,
+    fontSize: 32,
+    color: '#FFD700',
+    textAlign: 'center',
+    textShadowColor: 'rgba(0,0,0,0.8)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 8,
+  },
+  stageFlashSub: {
+    fontFamily: Fonts.bodyMedium,
+    fontSize: 18,
+    color: Colors.primary,
+    marginTop: 8,
+  },
+
+  // Prize modal
+  prizeCard: {
+    backgroundColor: Colors.surfaceHigh,
+    borderRadius: 28,
+    padding: 32,
+    width: '100%',
+    gap: 16,
+    alignItems: 'center',
+  },
+  prizeEmoji: { fontSize: 64 },
+  prizeTitle: {
+    fontFamily: Fonts.headlineEB,
+    fontSize: 28,
+    color: '#FFD700',
+    textAlign: 'center',
+  },
+  prizeSub: {
+    fontFamily: Fonts.body,
+    fontSize: 15,
+    color: Colors.onSurfaceVariant,
+    textAlign: 'center',
+    lineHeight: 22,
   },
 
   // Modals
@@ -805,11 +1032,6 @@ const styles = StyleSheet.create({
     color: Colors.onSurfaceVariant,
     textAlign: 'center',
   },
-  freezeButtons: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  modalBtn: {
-    width: '100%',
-  },
+  freezeButtons: { flexDirection: 'row', gap: 12 },
+  modalBtn: { width: '100%' },
 })
